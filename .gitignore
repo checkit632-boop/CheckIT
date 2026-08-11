@@ -1,0 +1,16 @@
+# Dependencias de Node.js
+node_modules/
+npm-debug.log*
+
+# Variables de entorno
+.env
+.env.local
+
+# Bases de datos locales
+*.db
+*.db-shm
+*.db-wal
+
+# Editores y sistema
+.DS_Store
+.vscode/
