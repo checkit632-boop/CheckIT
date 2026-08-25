@@ -1,45 +1,60 @@
-CheckIT
-Sistema de registro y control de ingreso y salida de equipos de cómputo y electrónicos.
+# CheckIT — Sistema de Control de Equipos de Cómputo
 
-🚀 Descripción
-CheckIT es una solución de software diseñada para gestionar el acceso, la trazabilidad y la seguridad de los equipos de cómputo mediante el registro de usuarios, autenticación, control de roles y seguimiento de movimientos.
+**CheckIT** es una solución de software diseñada para gestionar el acceso, la trazabilidad y la seguridad de los equipos de cómputo y dispositivos electrónicos mediante el registro de usuarios, autenticación, control de roles y seguimiento en tiempo real de los movimientos.
 
-📑 Estructura del Repositorio
-El proyecto cuenta con la documentación general, base de datos y un histórico de versiones del desarrollo:
+---
 
-CheckIT/: Versión principal del proyecto.
+## 📄 Descripción
 
-checkit_v1/, checkit_v2/, checkit_v3/, checkit_v4/: Módulos e historial de iteraciones del desarrollo.
+CheckIT permite administrar de manera eficiente la entrada y salida de equipos tecnológicos dentro de una institución u organización, garantizando un control estricto de permisos y la persistencia de datos seguros para auditoría.
 
-database/: Scripts SQL, esquemas relacionales y consultas para la base de datos.
+---
 
-docs/: Diccionario de datos y documentación técnica del sistema.
+## 📁 Estructura del Repositorio
 
-test/: Pruebas de integración, consultas y scripts de prueba.
+El proyecto cuenta con la documentación general, esquemas de base de datos e histórico de versiones del desarrollo:
 
-⚙️ Funcionalidades Principales
-Autenticación y Sesión: Registro e inicio de sesión seguro.
+* **`CheckIT/`**: Versión principal del proyecto.
+* **`checkit_v1/`, `checkit_v2/`, `checkit_v3/`, `checkit_v4/`**: Módulos e historial de iteraciones del desarrollo.
+* **`database/`**: Scripts SQL, esquemas relacionales y consultas para la base de datos.
+* **`docs/`**: Diccionario de datos y documentación técnica del sistema.
+* **`test/`**: Pruebas de integración, consultas y scripts de prueba.
 
-Gestión de Usuarios y Roles: Control de permisos por rol (Administrador, Usuario, etc.).
+---
 
-Control de Equipos: Registro y seguimiento de entrada/salida de dispositivos.
+## ⚙️ Funcionalidades Principales
 
-Mapeo de Base de Datos: Script de estructura e inserción de datos operativos.
+* **Autenticación y Sesión:** Registro e inicio de sesión seguro para los usuarios.
+* **Gestión de Usuarios y Roles:** Control de acceso granular por rol (Administrador, Usuario, Guarda de Seguridad, etc.).
+* **Control de Equipos:** Registro detallado y seguimiento en tiempo real de la entrada y salida de dispositivos.
+* **Mapeo de Base de Datos:** Scripts automatizados de estructura e inserción de datos operativos.
 
-🛠️ Tecnologías Utilizadas
-Frontend:
+---
 
-HTML5 / CSS3 / JavaScript
+## 🛠️ Tecnologías Utilizadas
 
-React / Tailwind CSS (según la versión del módulo)
+### **Frontend**
+* **React**: Librería principal para la construcción de la interfaz de usuario basada en componentes.
+* **Vite**: Bundler y entorno de desarrollo rápido.
+* **Tailwind CSS**: Framework de CSS para el diseño responsivo, estilización por clases de utilidad y componentes modulares.
+* **Lucide React**: Biblioteca de iconos vectoriales limpios y modernos.
+* **jsPDF & autoTable**: Generación dinámicas de reportes y exportación de datos en formato PDF en el cliente.
 
-Backend:
+### **Backend**
+* **Node.js**: Entorno de ejecución para el servidor en JavaScript.
+* **Express.js**: Framework para la creación de la API RESTful y gestión de rutas.
+* **Cors**: Middleware para la habilitación de peticiones entre dominios cruzados.
 
-Node.js
+### **Base de Datos & Gestión de Estado**
+* **SQLite / MySQL**: Motor de base de datos relacional para el almacenamiento de registros de entrada/salida, equipos y personas.
+* **Axios / Client API**: Cliente HTTP para consumir los endpoints del servidor en tiempo real.
 
-Base de Datos & Herramientas:
+---
 
-SQLite
+## 👤 Autor / Equipo TECNOSOFT
 
-👤 Autor / Equipo
-TECNOSOFT — Desarrollado por Anyi, Emerson, Doly y Santiago.
+Desarrollado con dedicación por:
+* **Anyi**
+* **Emerson**
+* **Doly**
+* **Santiago**
