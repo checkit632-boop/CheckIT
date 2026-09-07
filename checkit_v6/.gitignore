@@ -1,0 +1,7 @@
+node_modules/
+backend/.env
+backend/db/checkit.db
+backend/db/checkit.db-shm
+backend/db/checkit.db-wal
+frontend/dist/
+.DS_Store
