@@ -19,13 +19,14 @@ const Database = require('better-sqlite3');
 const DB_PATH = path.join(__dirname, '../db/checkit.db');
 
 function obtenerDestinos() {
-  return [process.env.BACKUP_DIR_1, process.env.BACKUP_DIR_2].map((d) => d?.trim()).filter(Boolean);
+  return [process.env.BACKUP_DIR_1, process.env.BACKUP_DIR_2]
+    .map((d) => d?.trim())
+    .filter(Boolean);
 }
 
 function limpiarRespaldosAntiguos(carpeta, retencion) {
   try {
-    const archivos = fs
-      .readdirSync(carpeta)
+    const archivos = fs.readdirSync(carpeta)
       .filter((f) => f.startsWith('checkit_backup_') && f.endsWith('.db'))
       .map((f) => {
         const ruta = path.join(carpeta, f);
@@ -50,11 +51,7 @@ async function ejecutarRespaldo() {
 
   const destinos = obtenerDestinos();
   if (destinos.length === 0) {
-    return {
-      ok: false,
-      error:
-        'No hay carpetas de respaldo configuradas (BACKUP_DIR_1 / BACKUP_DIR_2 en backend/.env)',
-    };
+    return { ok: false, error: 'No hay carpetas de respaldo configuradas (BACKUP_DIR_1 / BACKUP_DIR_2 en backend/.env)' };
   }
 
   const ahora = new Date();
@@ -90,10 +87,7 @@ async function ejecutarRespaldo() {
   fs.unlinkSync(rutaTemporal);
 
   if (guardadosEn.length === 0) {
-    return {
-      ok: false,
-      error: `No se pudo guardar el respaldo en ninguna carpeta: ${JSON.stringify(fallidosEn)}`,
-    };
+    return { ok: false, error: `No se pudo guardar el respaldo en ninguna carpeta: ${JSON.stringify(fallidosEn)}` };
   }
 
   return { ok: true, archivo: nombreArchivo, destinos: guardadosEn, fallidosEn };

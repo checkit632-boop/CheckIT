@@ -48,9 +48,17 @@ checkit/
 ```bash
 cd backend
 npm install
-cp .env.example .env      # opcional: cambia el JWT_SECRET en producción
+cp .env.example .env      # obligatorio: define tu propio JWT_SECRET (NC-6, ver abajo)
 npm run dev                # o: npm start
 ```
+
+⚠️ **`JWT_SECRET` es obligatorio.** El servidor no arranca sin él (ya no
+existe un secreto de respaldo escrito en el código — NC-6 de la auditoría).
+Genera uno propio antes de correr `npm run dev`:
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+```
+Copia el resultado en `backend/.env`, en la línea `JWT_SECRET=`.
 
 Esto:
 - crea el archivo `db/checkit.db` (SQLite) si no existe,
@@ -61,7 +69,12 @@ Esto:
   y el tipo/número de documento en usuarios, sin borrar nada),
 - crea un usuario **Super Administrador** por defecto:
   - **usuario:** `admin`
-  - **contraseña:** `admin123`
+  - **contraseña:** aleatoria, generada al crear la base de datos por
+    primera vez (NC-6: ya no se siembra una contraseña fija y conocida como
+    `admin123`). Queda escrita **una sola vez** en
+    `backend/.super_admin_password_inicial.txt` — ábrelo, copia la
+    contraseña, inicia sesión, y bórralo (ese archivo nunca se sube a Git,
+    ver `.gitignore`). Tampoco se imprime en la consola del servidor.
   - **correo:** `checkit632@gmail.com` (recibe ahí el PIN del tercer factor
     al iniciar sesión — ver la sección de correo SMTP más abajo)
 
@@ -118,6 +131,45 @@ npm run build
 Esto genera la carpeta `dist/` lista para servir con cualquier servidor
 estático (Nginx, Apache, `serve`, etc.). Recuerda apuntar las peticiones
 `/api` hacia tu backend en producción (proxy inverso o variable de entorno).
+
+### 3. Respaldo de la base de datos
+
+`backend/db/checkit.db` es un archivo SQLite normal: si el disco donde vive
+el proyecto falla, se pierde toda la información a menos que haya una copia
+en otro lado. El sistema incluye un respaldo automático diario, pensado para
+guardar la copia en un disco/unidad **distinto** al del proyecto — y,
+opcionalmente, en un **tercer lugar** aparte (otra unidad, o una carpeta
+sincronizada con la nube como Google Drive/OneDrive) para más seguridad.
+
+Configúralo en `backend/.env`:
+
+```env
+BACKUP_DIR_1=E:\Respaldos_CheckIT
+BACKUP_DIR_2=
+BACKUP_HORA=02:00
+BACKUP_RETENCION=14
+```
+
+- **`BACKUP_DIR_1`** (obligatorio para que el respaldo funcione): carpeta en
+  otra unidad de disco. Si no existe, se crea sola.
+- **`BACKUP_DIR_2`** (opcional, muy recomendado): un tercer lugar aparte.
+- **`BACKUP_HORA`**: hora del día (24 h) en que corre solo, una vez al día.
+  Por defecto 02:00 a.m., para no coincidir con el reinicio operativo de las
+  11:59 p.m. ni con el horario normal de uso.
+- **`BACKUP_RETENCION`**: cuántos respaldos conservar por carpeta (los más
+  viejos se eliminan automáticamente). Por defecto 14 (dos semanas).
+
+El respaldo usa el propio motor de SQLite (no una copia de archivo cruda),
+así que es seguro ejecutarlo con el servidor corriendo y en uso — nunca deja
+un respaldo a medias o corrupto.
+
+También puedes generarlo tú mismo en cualquier momento, sin esperar a la
+hora programada:
+
+```bash
+cd backend
+npm run backup
+```
 
 ## Autenticación y roles (v6)
 
@@ -220,7 +272,34 @@ jerarquía de creación estricta:
   manual del serial.
 - Historial de movimientos y resumen general (Administrador y Super Administrador).
 
-## Notas sobre el script de base de datos original
+## Correcciones de la auditoría cruzada (Grupo ACABADOS Y DISEÑOS 1A, 07/09/2026)
+
+- **NC-6 (Seguridad — Alta):** se quitó el secreto JWT de respaldo escrito en
+  el código (`backend/middleware/auth.js`) — ahora `JWT_SECRET` es
+  obligatorio y el servidor no arranca sin él. La cuenta semilla `admin` ya
+  no usa una contraseña fija (`admin123`); se genera una aleatoria en cada
+  base de datos nueva, se guarda una sola vez en un archivo local que nunca
+  se sube a Git, y ya no se imprime en la consola (`backend/db/database.js`).
+- **NC-7 (Fiabilidad — Alta):** las operaciones de varias escrituras en
+  `backend/routes/usuarios.js` (crear, editar, eliminar y cambiar estado)
+  ahora están envueltas en una transacción (`db.transaction(...)`) — si algo
+  falla a mitad de camino, SQLite revierte todo en vez de dejar la base de
+  datos en un estado a medias.
+- **NC-8 (Mantenibilidad — Media):** `frontend/src/pages/EntradasSalidas.jsx`
+  pasó de ~620 a ~370 líneas. Se extrajeron `ValidarAccesoCard.jsx`,
+  `MovimientosRecientesPanel.jsx` y `EstadoSistemaFooter.jsx` (en
+  `components/entradas-salidas/`), y la lógica de clima/fecha a
+  `utils/clima.js` y `utils/fechas.js`. El componente de la página ahora solo
+  coordina estado y llamadas a la API.
+- **NC-5 (Gestión de configuración — Alta):** el repositorio tiene varias
+  copias completas del proyecto versionadas como carpetas (`checkit_v1` …
+  `checkit_v6`) en vez de usar ramas/tags de Git, además de archivos
+  binarios de la base de datos (`.db`, `.db-shm`, `.db-wal`) commiteados por
+  error. El `.gitignore` ya se reforzó para que esos archivos nunca vuelvan
+  a versionarse; falta eliminar del repositorio las carpetas de versiones
+  antiguas (el historial de Git ya las conserva si hace falta consultarlas
+  después) — ver el paso a paso más abajo.
+
 
 El script que compartiste (`CREATE DATABASE checkIt; ... MySQL`) fue adaptado
 a SQLite en `backend/db/schema.sql`:

@@ -99,21 +99,31 @@ router.post('/', (req, res) => {
   }
 
   const hash = bcrypt.hashSync(password, 10);
-  const info = db.prepare(`
-    INSERT INTO usuarios (usuario, nombre, apellidos, correo, celular, id_tipo_documento, numero_documento, password_hash, id_rol, estado)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
-  `).run(usuario, nombre, apellidos, correo, celular || null, id_tipo_documento, numero_documento, hash, id_rol);
 
-  db.prepare(`INSERT INTO auditoria (id_usuario, accion, tabla_afectada, descripcion) VALUES (?, 'INSERT', 'usuarios', ?)`)
-    .run(req.user.id_usuario, `Creación de usuario ${usuario} (rol ${rolSolicitado}) por ${req.user.usuario}`);
+  // NC-7: la creación del usuario y su registro de auditoría ahora se
+  // confirman como una sola operación atómica. Si algo falla a mitad de
+  // camino (ej. un error de disco), SQLite revierte todo — nunca queda un
+  // usuario creado sin su rastro de auditoría, ni viceversa.
+  const crearUsuario = db.transaction(() => {
+    const info = db.prepare(`
+      INSERT INTO usuarios (usuario, nombre, apellidos, correo, celular, id_tipo_documento, numero_documento, password_hash, id_rol, estado)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+    `).run(usuario, nombre, apellidos, correo, celular || null, id_tipo_documento, numero_documento, hash, id_rol);
 
-  res.status(201).json({ id_usuario: info.lastInsertRowid });
+    db.prepare(`INSERT INTO auditoria (id_usuario, accion, tabla_afectada, descripcion) VALUES (?, 'INSERT', 'usuarios', ?)`)
+      .run(req.user.id_usuario, `Creación de usuario ${usuario} (rol ${rolSolicitado}) por ${req.user.usuario}`);
+
+    return info.lastInsertRowid;
+  });
+
+  const id_usuario = crearUsuario();
+  res.status(201).json({ id_usuario });
 });
 
 // PUT /api/usuarios/:id
 router.put('/:id', (req, res) => {
   const { id } = req.params;
-  const { usuario, nombre, apellidos, correo, celular, id_tipo_documento, numero_documento, password, id_rol, estado } = req.body;
+  const { usuario, nombre, apellidos, correo, celular, id_tipo_documento, numero_documento, password, id_rol } = req.body;
   const current = db.prepare('SELECT * FROM usuarios WHERE id_usuario = ?').get(id);
   if (!current) return res.status(404).json({ error: 'Usuario no encontrado' });
   if (current.usuario === 'sistema') return res.status(403).json({ error: 'Esta es una cuenta interna del sistema y no se puede editar.' });
@@ -173,14 +183,19 @@ router.put('/:id', (req, res) => {
     return res.status(409).json({ error: 'Ese número de documento ya está registrado.' });
   }
 
-  db.prepare(`
-    UPDATE usuarios SET usuario=?, nombre=?, apellidos=?, correo=?, celular=?, id_tipo_documento=?, numero_documento=?, password_hash=?, id_rol=?, estado=?
-    WHERE id_usuario=?
-  `).run(usuario, nombre, apellidos, correo, celular || null, id_tipo_documento, numero_documento, hash, id_rol, estadoFinal, id);
+  // NC-7: mismo principio — actualizar el usuario y dejar la auditoría
+  // quedan atados a una sola transacción.
+  const actualizarUsuario = db.transaction(() => {
+    db.prepare(`
+      UPDATE usuarios SET usuario=?, nombre=?, apellidos=?, correo=?, celular=?, id_tipo_documento=?, numero_documento=?, password_hash=?, id_rol=?, estado=?
+      WHERE id_usuario=?
+    `).run(usuario, nombre, apellidos, correo, celular || null, id_tipo_documento, numero_documento, hash, id_rol, estadoFinal, id);
 
-  db.prepare(`INSERT INTO auditoria (id_usuario, accion, tabla_afectada, descripcion) VALUES (?, 'UPDATE', 'usuarios', ?)`)
-    .run(req.user.id_usuario, `Actualización de usuario id ${id}`);
+    db.prepare(`INSERT INTO auditoria (id_usuario, accion, tabla_afectada, descripcion) VALUES (?, 'UPDATE', 'usuarios', ?)`)
+      .run(req.user.id_usuario, `Actualización de usuario id ${id}`);
+  });
 
+  actualizarUsuario();
   res.json({ message: 'Usuario actualizado' });
 });
 
@@ -214,13 +229,16 @@ router.delete('/:id', (req, res) => {
     return res.status(409).json({ error: 'No se puede eliminar este usuario porque tiene movimientos registrados.' });
   }
 
-  db.prepare(`DELETE FROM usuarios WHERE id_usuario = ?`).run(id);
+  // NC-7: eliminar y auditar, atado a una sola transacción.
+  const eliminarUsuario = db.transaction(() => {
+    db.prepare(`DELETE FROM usuarios WHERE id_usuario = ?`).run(id);
+    db.prepare(`
+      INSERT INTO auditoria (id_usuario, accion, tabla_afectada, descripcion)
+      VALUES (?, 'DELETE', 'usuarios', ?)
+    `).run(req.user.id_usuario, `Eliminación de usuario id ${id}`);
+  });
 
-  db.prepare(`
-    INSERT INTO auditoria (id_usuario, accion, tabla_afectada, descripcion)
-    VALUES (?, 'DELETE', 'usuarios', ?)
-  `).run(req.user.id_usuario, `Eliminación de usuario id ${id}`);
-
+  eliminarUsuario();
   res.json({ message: 'Usuario eliminado correctamente.' });
 });
 
@@ -237,11 +255,14 @@ router.patch('/:id/estado', requireRole(ROL_SUPER), (req, res) => {
   if (objetivo.usuario === 'sistema') return res.status(403).json({ error: 'Esta es una cuenta interna del sistema y no se puede modificar.' });
   if (Number(id) === req.user.id_usuario) return res.status(400).json({ error: 'No puedes inactivar tu propia cuenta.' });
 
-  db.prepare('UPDATE usuarios SET estado = ? WHERE id_usuario = ?').run(estado ? 1 : 0, id);
+  // NC-7: cambiar el estado y auditar, atado a una sola transacción.
+  const cambiarEstado = db.transaction(() => {
+    db.prepare('UPDATE usuarios SET estado = ? WHERE id_usuario = ?').run(estado ? 1 : 0, id);
+    db.prepare(`INSERT INTO auditoria (id_usuario, accion, tabla_afectada, descripcion) VALUES (?, 'UPDATE', 'usuarios', ?)`)
+      .run(req.user.id_usuario, `Usuario ${objetivo.usuario} marcado como ${estado ? 'activo' : 'inactivo'} por ${req.user.usuario}`);
+  });
 
-  db.prepare(`INSERT INTO auditoria (id_usuario, accion, tabla_afectada, descripcion) VALUES (?, 'UPDATE', 'usuarios', ?)`)
-    .run(req.user.id_usuario, `Usuario ${objetivo.usuario} marcado como ${estado ? 'activo' : 'inactivo'} por ${req.user.usuario}`);
-
+  cambiarEstado();
   res.json({ message: `Usuario ${estado ? 'activado' : 'inactivado'} correctamente` });
 });
 

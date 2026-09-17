@@ -3,5 +3,8 @@ backend/.env
 backend/db/checkit.db
 backend/db/checkit.db-shm
 backend/db/checkit.db-wal
+backend/.super_admin_password_inicial.txt
+backend/backup_log.txt
+backend/reinicio_log.txt
 frontend/dist/
 .DS_Store

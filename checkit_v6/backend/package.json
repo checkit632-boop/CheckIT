@@ -8,7 +8,8 @@
     "dev": "node --watch server.js",
     "lint": "eslint . --ext .js",
     "format": "prettier --write .",
-    "backup": "node scripts/backup.js"
+    "backup": "node scripts/backup.js",
+    "reinicio": "node scripts/reinicio.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

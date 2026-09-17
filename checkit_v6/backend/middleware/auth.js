@@ -1,6 +1,16 @@
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'checkit_dev_secret_change_me';
+// NC-6: ya no existe un secreto de respaldo escrito en el código. Si falta
+// JWT_SECRET en el .env, el servidor debe fallar de forma ruidosa al
+// arrancar (en vez de firmar tokens silenciosamente con un valor conocido
+// y adivinable por cualquiera que lea el repositorio).
+if (!process.env.JWT_SECRET) {
+  throw new Error(
+    'Falta JWT_SECRET en backend/.env. Genera uno propio (una cadena larga y aleatoria) ' +
+    'antes de arrancar el servidor — revisa backend/.env.example.'
+  );
+}
+const JWT_SECRET = process.env.JWT_SECRET;
 
 const ROL_SUPER = 'Super Administrador';
 const ROL_ADMIN = 'Administrador';

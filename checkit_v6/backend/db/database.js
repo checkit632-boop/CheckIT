@@ -116,12 +116,29 @@ function seed() {
   if (countUsers === 0) {
     const superRolId = db.prepare("SELECT id_rol FROM roles WHERE nombre_rol = 'Super Administrador'").get().id_rol;
     const cedulaId = db.prepare("SELECT id_tipo_documento FROM tipos_documento WHERE nombre_documento = 'Cédula de ciudadanía'").get()?.id_tipo_documento;
-    const hash = bcrypt.hashSync('admin123', 10);
+
+    // NC-6: ya no se siembra una contraseña conocida ("admin123") ni se
+    // imprime ninguna contraseña en la consola (los logs del servidor
+    // pueden terminar compartidos, capturados en video, etc.). En su lugar
+    // se genera una contraseña aleatoria de un solo uso y se guarda SOLO en
+    // un archivo local que nunca se sube a Git (ver .gitignore); el primer
+    // inicio de sesión debe hacerse con esa contraseña y luego cambiarla,
+    // o directamente usar "¿Olvidaste tu contraseña?" con el correo real.
+    const passwordInicial = crypto.randomBytes(9).toString('base64url');
+    const hash = bcrypt.hashSync(passwordInicial, 10);
     db.prepare(`
       INSERT INTO usuarios (usuario, nombre, apellidos, correo, celular, id_tipo_documento, numero_documento, password_hash, id_rol, estado)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
     `).run('admin', 'Admin', 'CheckIT', 'checkit632@gmail.com', '3000000000', cedulaId || null, '1000000000', hash, superRolId);
-    console.log('✔ Usuario Super Administrador creado -> usuario: admin | contraseña: admin123 | correo: checkit632@gmail.com');
+
+    const rutaPassword = path.join(__dirname, '../.super_admin_password_inicial.txt');
+    fs.writeFileSync(
+      rutaPassword,
+      `Usuario: admin\nContraseña inicial: ${passwordInicial}\n\n` +
+      `Este archivo se generó una sola vez, al crear la base de datos por primera vez.\n` +
+      `Bórralo después de tu primer inicio de sesión. Nunca se sube a Git (ver .gitignore).\n`
+    );
+    console.log('✔ Usuario Super Administrador creado -> usuario: admin | contraseña inicial guardada en backend/.super_admin_password_inicial.txt (bórralo después de usarla)');
   }
 }
 
