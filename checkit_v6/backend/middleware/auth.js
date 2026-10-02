@@ -4,13 +4,10 @@ const jwt = require('jsonwebtoken');
 // JWT_SECRET en el .env, el servidor debe fallar de forma ruidosa al
 // arrancar (en vez de firmar tokens silenciosamente con un valor conocido
 // y adivinable por cualquiera que lea el repositorio).
-if (!process.env.JWT_SECRET) {
-  throw new Error(
-    'Falta JWT_SECRET en backend/.env. Genera uno propio (una cadena larga y aleatoria) ' +
-    'antes de arrancar el servidor — revisa backend/.env.example.'
-  );
-}
 const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('Falta JWT_SECRET en el archivo .env');
+}
 
 const ROL_SUPER = 'Super Administrador';
 const ROL_ADMIN = 'Administrador';
