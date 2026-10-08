@@ -104,6 +104,7 @@ erDiagram
         TEXT tipo
         DATETIME expira
         INTEGER usado
+        INTEGER intentos
         DATETIME fecha_creacion
     }
 ```
