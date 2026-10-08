@@ -250,7 +250,7 @@ export default function Resumen() {
   // español/Latinoamérica usa "," como separador decimal y por lo tanto
   // espera ";" como separador de columnas en un CSV. Con "," como
   // delimitador, Excel abre el archivo entero en una sola columna (el
-  // problema que se estaba viendo). El BOM al inicio (﻿) se mantiene
+  // problema que se estaba viendo). El BOM al inicio (U+FEFF) se mantiene
   // para que tildes y la "ñ" se vean bien.
   const CSV_DELIM = ';';
   const csvEscape = (val) => `"${String(val ?? '').replace(/"/g, '""')}"`;

@@ -104,7 +104,7 @@ export default function EquipmentQRModal({ equipo, onClose }) {
       <h3>CheckIT — Computador</h3>
       <img class="qr" src="${dataUrl}" width="220" height="220" />
       <p>${equipo.nombre_marca} ${equipo.modelo || ''}<br/>Serial: <strong>${equipo.serial}</strong></p>
-      <script>window.onload=()=>{window.print();window.close();}<\/script>
+      <script>window.onload=()=>{window.print();window.close();}</script>
       </body></html>`);
     win.document.close();
   };
