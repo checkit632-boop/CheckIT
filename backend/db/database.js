@@ -117,7 +117,7 @@ function seed() {
     const superRolId = db.prepare("SELECT id_rol FROM roles WHERE nombre_rol = 'Super Administrador'").get().id_rol;
     const cedulaId = db.prepare("SELECT id_tipo_documento FROM tipos_documento WHERE nombre_documento = 'Cédula de ciudadanía'").get()?.id_tipo_documento;
 
-    // NC-6: ya no se siembra una contraseña conocida ("admin123") ni se
+    // H-02 / NC-6: ya no se siembra una contraseña conocida ("admin123") ni se
     // imprime ninguna contraseña en la consola (los logs del servidor
     // pueden terminar compartidos, capturados en video, etc.). En su lugar
     // se genera una contraseña aleatoria de un solo uso y se guarda SOLO en
@@ -136,7 +136,9 @@ function seed() {
       rutaPassword,
       `Usuario: admin\nContraseña inicial: ${passwordInicial}\n\n` +
       `Este archivo se generó una sola vez, al crear la base de datos por primera vez.\n` +
-      `Bórralo después de tu primer inicio de sesión. Nunca se sube a Git (ver .gitignore).\n`
+      `Bórralo después de tu primer inicio de sesión. Nunca se sube a Git (ver .gitignore).\n`,
+      // H-02: solo lectura/escritura para el dueño del archivo (en sistemas POSIX).
+      { mode: 0o600 }
     );
     console.log('✔ Usuario Super Administrador creado -> usuario: admin | contraseña inicial guardada en backend/.super_admin_password_inicial.txt (bórralo después de usarla)');
   }
