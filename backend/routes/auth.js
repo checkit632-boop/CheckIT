@@ -159,15 +159,12 @@ router.post('/login', (req, res) => {
       asunto: 'Tu código de verificación de CheckIT',
       intro: 'Estás iniciando sesión en CheckIT. Usa el siguiente código para completar el acceso:',
       minutos: CODIGO_EXPIRA_MINUTOS,
-    }).then((r) => {
-      if (r.simulado) console.log(`(Modo de prueba) Código de acceso de ${user.usuario}: ${codigo}`);
     });
 
     return res.json({
       requiereCodigo: true,
       id_usuario: user.id_usuario,
       mensaje: 'Ingresa el código de 6 dígitos enviado a tu correo para completar el inicio de sesión.',
-      ...(process.env.NODE_ENV !== 'production' ? { dev_codigo: codigo } : {}),
     });
   }
 
@@ -218,10 +215,7 @@ router.post('/login/reenviar', (req, res) => {
     minutos: CODIGO_EXPIRA_MINUTOS,
   });
 
-  res.json({
-    mensaje: 'Se envió un nuevo código a tu correo.',
-    ...(process.env.NODE_ENV !== 'production' ? { dev_codigo: codigo } : {}),
-  });
+  res.json({ mensaje: 'Se envió un nuevo código a tu correo.' });
 });
 
 // POST /api/auth/forgot-password — solicita el código de recuperación.
@@ -247,10 +241,7 @@ router.post('/forgot-password', (req, res) => {
     minutos: CODIGO_EXPIRA_MINUTOS,
   });
 
-  res.json({
-    ...respuestaGenerica,
-    ...(process.env.NODE_ENV !== 'production' ? { dev_codigo: codigo, dev_usuario: user.usuario } : {}),
-  });
+  res.json(respuestaGenerica);
 });
 
 // POST /api/auth/reset-password — valida el código y define la nueva contraseña.

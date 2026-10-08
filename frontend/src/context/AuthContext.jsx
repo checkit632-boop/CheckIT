@@ -14,7 +14,7 @@ export function AuthProvider({ children }) {
   const login = useCallback(async (usuario, password) => {
     const { data } = await api.post('/auth/login', { usuario, password });
     if (data.requiereCodigo) {
-      return { requiereCodigo: true, id_usuario: data.id_usuario, mensaje: data.mensaje, dev_codigo: data.dev_codigo };
+      return { requiereCodigo: true, id_usuario: data.id_usuario, mensaje: data.mensaje };
     }
     localStorage.setItem('checkit_token', data.token);
     localStorage.setItem('checkit_user', JSON.stringify(data.user));

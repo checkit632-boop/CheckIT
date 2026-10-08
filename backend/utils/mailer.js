@@ -1,9 +1,11 @@
 // Envío de correos para "olvidé mi contraseña" y el tercer factor (código de
-// 6 dígitos) del login. Si no hay credenciales SMTP configuradas en el .env,
-// el sistema sigue funcionando: el código se muestra en la consola del
-// servidor (y, solo fuera de producción, se incluye en la respuesta de la
-// API) para que el flujo se pueda probar sin depender de un proveedor de
-// correo real.
+// 6 dígitos) del login.
+//
+// H-04: el código NUNCA viaja en la respuesta HTTP, en ningún entorno. Si no
+// hay SMTP configurado (o el envío falla), el código solo se muestra en la
+// consola del servidor y únicamente cuando NODE_ENV vale exactamente
+// 'development'. Cualquier otro valor (vacío, mal escrito, 'staging',
+// 'production') se trata como entorno real y el código no se muestra.
 const path = require('path');
 const fs = require('fs');
 
@@ -102,7 +104,11 @@ async function enviarCodigo({ correo, nombre, codigo, asunto, intro, minutos = 1
   }
 
   // Modo de respaldo (sin SMTP configurado o si el envío falló)
-  console.log(`\n📧 [CheckIT] Código para ${correo || 'usuario sin correo'}: ${codigo}  (${asunto})\n`);
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`\n📧 [DEV] Código para ${correo || 'usuario sin correo'}: ${codigo}  (${asunto})\n`);
+  } else {
+    console.warn(`⚠ [CheckIT] No se pudo entregar el código a ${correo || 'usuario sin correo'}: revisa la configuración SMTP.`);
+  }
   return { enviado: false, simulado: true };
 }
 
