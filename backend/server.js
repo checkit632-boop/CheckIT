@@ -14,6 +14,7 @@ const dashboardRoutes = require('./routes/dashboard');
 require('./db/database');
 const { ejecutarRespaldo, obtenerDestinos } = require('./utils/backup');
 const { ejecutarReinicioOperativo } = require('./utils/reinicio');
+const errorHandler = require('./middleware/errorHandler');
 
 
 // H-05: red de seguridad general. Una promesa rechazada sin .catch() (p. ej.
@@ -40,11 +41,8 @@ app.use('/api/registros', registrosRoutes);
 app.use('/api/catalogos', catalogosRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 
-// Manejador de errores genérico
-app.use((err, req, res, next) => {
-  console.error(err);
-  res.status(500).json({ error: 'Error interno del servidor' });
-});
+// H-06: manejador de errores centralizado (siempre después de las rutas).
+app.use(errorHandler);
 
 // ── Reinicio operativo diario (11:59 p.m.) ─────────────────────
 // La lógica vive en utils/reinicio.js. Este bloque es solo el disparador
