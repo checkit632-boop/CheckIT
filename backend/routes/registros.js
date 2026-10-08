@@ -22,9 +22,12 @@ const SELECT_BASE = `
   JOIN usuarios u ON u.id_usuario = r.id_usuario
 `;
 
+const LIMIT_POR_DEFECTO = 100;
+const LIMIT_MAXIMO = 500;
+
 // GET /api/registros — Orden estricto por ID descendente
 // Parámetros opcionales:
-//   ?limit=N       -> limita la cantidad de resultados
+//   ?limit=N       -> limita la cantidad de resultados (1 a 500; inválido = 100)
 //   ?hoy=1         -> solo movimientos del día actual (se "vacía" a las 00:00)
 //   ?propios=1     -> solo los movimientos registrados por el usuario autenticado
 //                     (el Super Administrador siempre ve los de todos, sin importar este flag)
@@ -42,7 +45,20 @@ router.get('/', asyncHandler((req, res) => {
   }
 
   const where = condiciones.length ? ` WHERE ${condiciones.join(' AND ')}` : '';
-  const sql = `${SELECT_BASE}${where} ORDER BY r.id_registro DESC` + (limit ? ` LIMIT ${Number(limit)}` : '');
+  let sql = `${SELECT_BASE}${where} ORDER BY r.id_registro DESC`;
+
+  // H-07 / O-01: el límite nunca se interpola en la cadena SQL; va como
+  // parámetro preparado (?) igual que el resto de valores. Un valor no
+  // numérico o no positivo (?limit=abc, ?limit=-5) usa el tope por defecto
+  // en vez de producir "LIMIT NaN" (500), y uno desmedido se acota al máximo.
+  // Sin ?limit se devuelve el historial completo: lo usa la vista Resumen.
+  if (limit !== undefined) {
+    const pedido = Number.parseInt(limit, 10);
+    const tope = Number.isInteger(pedido) && pedido > 0 ? Math.min(pedido, LIMIT_MAXIMO) : LIMIT_POR_DEFECTO;
+    sql += ' LIMIT ?';
+    params.push(tope);
+  }
+
   res.json(db.prepare(sql).all(...params));
 }));
 
