@@ -10,7 +10,9 @@
     "format": "prettier --write .",
     "backup": "node scripts/backup.js",
     "reinicio": "node scripts/reinicio.js",
-    "seed": "node scripts/seed.js"
+    "seed": "node scripts/seed.js",
+    "sql:sync": "node scripts/sync-sql.js",
+    "sql:check": "node scripts/sync-sql.js --check"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
