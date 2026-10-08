@@ -9,32 +9,61 @@ aplicación full-stack:
 
 ## Estructura del proyecto
 
+El repositorio contiene **una sola copia** del sistema (H-11). Las versiones
+anteriores no se guardan como carpetas duplicadas (`checkit_v1` … `checkit_v5`)
+sino como **etiquetas de Git** (ver "Versiones y etiquetas" más abajo).
+
 ```
-checkit/
+(raíz del repositorio)
 ├── backend/          API REST (Express + SQLite)
 │   ├── db/
-│   │   ├── schema.sql       Esquema de la base de datos
+│   │   ├── schema.sql       Esquema de la base de datos (fuente de verdad)
 │   │   └── database.js      Conexión + migraciones + semillas iniciales
 │   ├── middleware/
 │   │   └── auth.js          Verificación de JWT y roles
 │   ├── utils/
-│   │   └── mailer.js        Envío de correos (SMTP / nodemailer)
+│   │   ├── mailer.js        Envío de correos (SMTP / nodemailer)
+│   │   ├── backup.js        Respaldo automático de la base de datos
+│   │   └── reinicio.js      Reinicio operativo diario
 │   ├── routes/
 │   │   ├── auth.js          Login (con tercer factor), recuperar contraseña
 │   │   ├── usuarios.js      Gestión de usuarios (Super Administrador / Administrador)
 │   │   ├── personas.js      Personas (propietarias de equipos)
 │   │   ├── equipos.js       Inventario de computadores + generación de QR
 │   │   ├── registros.js     Entradas / salidas
-│   │   └── catalogos.js     Marcas, estados, tipos de documento/movimiento
+│   │   ├── catalogos.js     Marcas, estados, tipos de documento/movimiento
+│   │   └── dashboard.js     Indicadores del tablero
+│   ├── scripts/             backup, reinicio y seed (datos de prueba ficticios)
 │   └── server.js
 └── frontend/          Interfaz (React + Tailwind)
     └── src/
         ├── api/client.js         Cliente Axios (adjunta el JWT automáticamente)
         ├── context/               AuthContext, ThemeContext y ToastContext
         ├── components/           Sidebar, Modal, AuthBackground, escáner y generador de QR
-        └── pages/                Login, ForgotPassword, Equipos,
-                                   EntradasSalidas, Resumen, Usuarios
+        ├── pages/                Login, ForgotPassword, Dashboard, Equipos,
+        │                          EntradasSalidas, Resumen, Usuarios
+        └── utils/                Funciones puras (fechas, clima, sonidos)
 ```
+
+> La base de datos (`backend/db/checkit.db`) **nunca** se versiona (H-03). Para
+> tener datos de prueba usa `cd backend && npm run seed`, que crea cuentas,
+> personas y equipos ficticios con contraseñas aleatorias guardadas solo en
+> `backend/.seed_credenciales.txt` (ignorado por Git).
+
+## Versiones y etiquetas
+
+Cada entrega estable se marca con una etiqueta anotada de Git en vez de
+copiar el proyecto a una carpeta nueva:
+
+```bash
+git tag                 # lista las versiones (v6.0, v6.1, ...)
+git checkout v6.0       # consulta el código exacto de esa entrega
+git checkout main       # vuelve a la versión vigente
+```
+
+Para crear una nueva entrega: `git tag -a v6.2 -m "Descripción de la entrega"`
+y luego `git push --tags`. Las reglas de ramas y commits están en
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Requisitos
 
@@ -291,14 +320,11 @@ jerarquía de creación estricta:
   `components/entradas-salidas/`), y la lógica de clima/fecha a
   `utils/clima.js` y `utils/fechas.js`. El componente de la página ahora solo
   coordina estado y llamadas a la API.
-- **NC-5 (Gestión de configuración — Alta):** el repositorio tiene varias
-  copias completas del proyecto versionadas como carpetas (`checkit_v1` …
-  `checkit_v6`) en vez de usar ramas/tags de Git, además de archivos
-  binarios de la base de datos (`.db`, `.db-shm`, `.db-wal`) commiteados por
-  error. El `.gitignore` ya se reforzó para que esos archivos nunca vuelvan
-  a versionarse; falta eliminar del repositorio las carpetas de versiones
-  antiguas (el historial de Git ya las conserva si hace falta consultarlas
-  después) — ver el paso a paso más abajo.
+- **NC-5 / H-11 (Gestión de configuración — Alta):** resuelto. El
+  repositorio contiene una sola copia del proyecto en la raíz; las versiones
+  se identifican con etiquetas de Git (`v6.0`, `v6.1`, …) y ningún archivo
+  de base de datos (`.db`, `.db-shm`, `.db-wal`) se versiona en ninguna
+  carpeta. Ver "Estructura del proyecto" y "Versiones y etiquetas".
 
 
 El script que compartiste (`CREATE DATABASE checkIt; ... MySQL`) fue adaptado
