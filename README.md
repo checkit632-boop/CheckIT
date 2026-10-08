@@ -35,6 +35,9 @@ sino como **etiquetas de Git** (ver "Versiones y etiquetas" más abajo).
 │   │   └── dashboard.js     Indicadores del tablero
 │   ├── scripts/             backup, reinicio y seed (datos de prueba ficticios)
 │   └── server.js
+├── database/
+│   └── Script_checkIt.sql   Copia idéntica de backend/db/schema.sql (npm run sql:check)
+├── docs/                    Diccionario de Datos y Diagrama Entidad-Relación
 └── frontend/          Interfaz (React + Tailwind)
     └── src/
         ├── api/client.js         Cliente Axios (adjunta el JWT automáticamente)
@@ -198,6 +201,23 @@ hora programada:
 ```bash
 cd backend
 npm run backup
+```
+
+## Modelo de datos
+
+El esquema que ejecuta el servidor es `backend/db/schema.sql` y es la única
+fuente de verdad. El entregable `database/Script_checkIt.sql` es una copia
+exacta (H-14), y su descripción está en
+[docs/Diccionario de Datos.md](docs/Diccionario%20de%20Datos.md) y
+[docs/Diagrama Entidad-Relacion.md](docs/Diagrama%20Entidad-Relacion.md),
+incluidas las tablas de seguridad `login_intentos` (bloqueo por intentos
+fallidos) y `codigos_verificacion` (tercer factor y recuperación de
+contraseña).
+
+```bash
+cd backend
+npm run sql:sync    # copia schema.sql -> database/Script_checkIt.sql
+npm run sql:check   # verifica que ambos coinciden (antes de cada Pull Request)
 ```
 
 ## Autenticación y roles (v6)
