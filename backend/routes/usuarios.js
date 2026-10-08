@@ -1,3 +1,10 @@
+// Gestión de usuarios del sistema (Super Administrador y Administrador).
+// Reglas de negocio que se validan aquí, no solo en la interfaz:
+// - Jerarquía: el Super Administrador gestiona Administradores y Operadores;
+//   el Administrador solo Operadores de Sistema (ver rolesGestionables).
+// - Correo y documento obligatorios y únicos: el correo es el canal del PIN.
+// - La cuenta interna 'sistema' no se lista, ni se edita ni se elimina.
+// - Cada escritura y su registro de auditoría van en una sola transacción.
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const db = require('../db/database');
@@ -214,6 +221,17 @@ router.put('/:id', asyncHandler((req, res) => {
 router.delete('/:id', asyncHandler((req, res) => {
   const { id } = req.params;
 
+  // El orden de estas validaciones es intencional:
+  // 1. Existencia y cuenta 'sistema' primero (no hay nada más que evaluar).
+  // 2. Permiso por jerarquía ANTES de consultar su historial, para no
+  //    revelarle a quien no tiene permiso si esa cuenta tiene auditoría o
+  //    movimientos.
+  // 3. Historial de auditoría: un usuario con rastro no se borra nunca (se
+  //    perdería quién hizo qué); para retirarlo se usa PATCH /:id/estado.
+  // 4. La propia cuenta: en la práctica ya la frena el paso 3 (todo usuario
+  //    que inició sesión tiene auditoría), pero se deja como defensa explícita.
+  // 5. Movimientos registrados: mismo motivo que el paso 3, para entradas y
+  //    salidas (registros.id_usuario).
   const objetivo = db.prepare('SELECT * FROM usuarios WHERE id_usuario = ?').get(id);
   if (!objetivo) return res.status(404).json({ error: 'Usuario no encontrado' });
   if (objetivo.usuario === 'sistema') return res.status(403).json({ error: 'Esta es una cuenta interna del sistema y no se puede eliminar.' });
@@ -234,7 +252,6 @@ router.delete('/:id', asyncHandler((req, res) => {
     return res.status(400).json({ error: 'No puedes eliminar tu propio usuario.' });
   }
 
-  // Verificar si tiene registros
   const movimientos = db.prepare(`SELECT COUNT(*) total FROM registros WHERE id_usuario = ?`).get(id);
   if (movimientos.total > 0) {
     return res.status(409).json({ error: 'No se puede eliminar este usuario porque tiene movimientos registrados.' });

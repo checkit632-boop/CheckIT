@@ -1,3 +1,8 @@
+// Autenticación de CheckIT: inicio de sesión en dos pasos (usuario +
+// contraseña, y luego un código de 6 dígitos enviado al correo), bloqueo por
+// intentos fallidos y recuperación de contraseña por código. Junto con
+// /api/health es lo único público de la API: todo lo demás exige el JWT
+// que se emite aquí.
 const express = require('express');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
@@ -153,6 +158,10 @@ router.post('/login', asyncHandler((req, res) => {
     WHERE u.usuario = ?
   `).get(usuario);
 
+  // Usuario inexistente, cuenta inactiva y contraseña errada reciben la misma
+  // respuesta genérica y suman al mismo contador de bloqueo (que también se
+  // lleva para nombres que no existen): así la API no revela qué cuentas son
+  // reales ni cuáles están inactivas.
   const valido = user && user.estado && bcrypt.compareSync(password, user.password_hash);
 
   if (!valido) {
@@ -195,6 +204,10 @@ router.post('/login', asyncHandler((req, res) => {
 
   // Sin correo registrado no es posible aplicar el tercer factor; se
   // mantiene el acceso directo para no dejar cuentas sin forma de entrar.
+  // Hoy solo pueden llegar aquí cuentas antiguas (anteriores a v6): crear o
+  // editar un usuario exige un correo válido (routes/usuarios.js), así que
+  // al editarlas quedan protegidas por el tercer factor. Queda registrado en
+  // la auditoría que ese acceso fue sin tercer factor.
   db.prepare(`INSERT INTO auditoria (id_usuario, accion, tabla_afectada, descripcion) VALUES (?, 'LOGIN', 'usuarios', ?)`)
     .run(user.id_usuario, `Inicio de sesión de ${user.usuario} (sin correo, sin tercer factor)`);
   const token = signToken(user);

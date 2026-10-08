@@ -1,3 +1,10 @@
+// Autenticación y autorización de la API.
+// - authRequired: exige un JWT válido (emitido por routes/auth.js, vigencia
+//   de 8 horas) y deja sus datos en req.user.
+// - requireRole: restringe una ruta a ciertos roles.
+// El rol viaja dentro del token: si a alguien le cambian el rol o lo
+// inactivan, el cambio aplica desde su siguiente inicio de sesión (o cuando
+// venza el token actual), no en la sesión ya abierta.
 const jwt = require('jsonwebtoken');
 
 // H-01 / NC-6: no existe un secreto de respaldo escrito en el código. Si falta
@@ -19,6 +26,7 @@ function authRequired(req, res, next) {
   if (!token) return res.status(401).json({ error: 'No autenticado' });
 
   try {
+    // verify comprueba firma y vencimiento: un token alterado o vencido no pasa.
     const payload = jwt.verify(token, JWT_SECRET);
     req.user = payload; // { id_usuario, usuario, nombre, apellidos, rol }
     next();
