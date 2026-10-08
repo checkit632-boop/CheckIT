@@ -16,6 +16,14 @@ const { ejecutarRespaldo, obtenerDestinos } = require('./utils/backup');
 const { ejecutarReinicioOperativo } = require('./utils/reinicio');
 
 
+// H-05: red de seguridad general. Una promesa rechazada sin .catch() (p. ej.
+// un fallo de SMTP o de respaldo) se registra en vez de tumbar toda la API.
+// Cada llamada asíncrona debe seguir manejando su propio error; esto es solo
+// el último recurso.
+process.on('unhandledRejection', (err) => {
+  console.error('[CheckIT] Rechazo de promesa no manejado:', err);
+});
+
 const app = express();
 const PORT = process.env.PORT || 4000;
 
