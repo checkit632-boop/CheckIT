@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # CheckIT — Sistema de Control de Equipos
 
 Conversión completa del prototipo original (HTML/CSS/JS + localStorage) a una
@@ -10,64 +9,32 @@ aplicación full-stack:
 
 ## Estructura del proyecto
 
-El repositorio contiene **una sola copia** del sistema (H-11). Las versiones
-anteriores no se guardan como carpetas duplicadas (`checkit_v1` … `checkit_v5`)
-sino como **etiquetas de Git** (ver "Versiones y etiquetas" más abajo).
-
 ```
-(raíz del repositorio)
+checkit/
 ├── backend/          API REST (Express + SQLite)
 │   ├── db/
-│   │   ├── schema.sql       Esquema de la base de datos (fuente de verdad)
+│   │   ├── schema.sql       Esquema de la base de datos
 │   │   └── database.js      Conexión + migraciones + semillas iniciales
 │   ├── middleware/
 │   │   └── auth.js          Verificación de JWT y roles
 │   ├── utils/
-│   │   ├── mailer.js        Envío de correos (SMTP / nodemailer)
-│   │   ├── backup.js        Respaldo automático de la base de datos
-│   │   └── reinicio.js      Reinicio operativo diario
+│   │   └── mailer.js        Envío de correos (SMTP / nodemailer)
 │   ├── routes/
 │   │   ├── auth.js          Login (con tercer factor), recuperar contraseña
 │   │   ├── usuarios.js      Gestión de usuarios (Super Administrador / Administrador)
 │   │   ├── personas.js      Personas (propietarias de equipos)
 │   │   ├── equipos.js       Inventario de computadores + generación de QR
 │   │   ├── registros.js     Entradas / salidas
-│   │   ├── catalogos.js     Marcas, estados, tipos de documento/movimiento
-│   │   └── dashboard.js     Indicadores del tablero
-│   ├── scripts/             backup, reinicio y seed (datos de prueba ficticios)
+│   │   └── catalogos.js     Marcas, estados, tipos de documento/movimiento
 │   └── server.js
-├── database/
-│   └── Script_checkIt.sql   Copia idéntica de backend/db/schema.sql (npm run sql:check)
-├── docs/                    Diccionario de Datos y Diagrama Entidad-Relación
 └── frontend/          Interfaz (React + Tailwind)
     └── src/
         ├── api/client.js         Cliente Axios (adjunta el JWT automáticamente)
         ├── context/               AuthContext, ThemeContext y ToastContext
         ├── components/           Sidebar, Modal, AuthBackground, escáner y generador de QR
-        ├── pages/                Login, ForgotPassword, Dashboard, Equipos,
-        │                          EntradasSalidas, Resumen, Usuarios
-        └── utils/                Funciones puras (fechas, clima, sonidos)
+        └── pages/                Login, ForgotPassword, Equipos,
+                                   EntradasSalidas, Resumen, Usuarios
 ```
-
-> La base de datos (`backend/db/checkit.db`) **nunca** se versiona (H-03). Para
-> tener datos de prueba usa `cd backend && npm run seed`, que crea cuentas,
-> personas y equipos ficticios con contraseñas aleatorias guardadas solo en
-> `backend/.seed_credenciales.txt` (ignorado por Git).
-
-## Versiones y etiquetas
-
-Cada entrega estable se marca con una etiqueta anotada de Git en vez de
-copiar el proyecto a una carpeta nueva:
-
-```bash
-git tag                 # lista las versiones (v6.0, v6.1, ...)
-git checkout v6.0       # consulta el código exacto de esa entrega
-git checkout main       # vuelve a la versión vigente
-```
-
-Para crear una nueva entrega: `git tag -a v6.2 -m "Descripción de la entrega"`
-y luego `git push --tags`. Las reglas de ramas y commits están en
-[CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Requisitos
 
@@ -204,23 +171,6 @@ cd backend
 npm run backup
 ```
 
-## Modelo de datos
-
-El esquema que ejecuta el servidor es `backend/db/schema.sql` y es la única
-fuente de verdad. El entregable `database/Script_checkIt.sql` es una copia
-exacta (H-14), y su descripción está en
-[docs/Diccionario de Datos.md](docs/Diccionario%20de%20Datos.md) y
-[docs/Diagrama Entidad-Relacion.md](docs/Diagrama%20Entidad-Relacion.md),
-incluidas las tablas de seguridad `login_intentos` (bloqueo por intentos
-fallidos) y `codigos_verificacion` (tercer factor y recuperación de
-contraseña).
-
-```bash
-cd backend
-npm run sql:sync    # copia schema.sql -> database/Script_checkIt.sql
-npm run sql:check   # verifica que ambos coinciden (antes de cada Pull Request)
-```
-
 ## Autenticación y roles (v6)
 
 El sistema usa JWT. Cada usuario pertenece a uno de tres roles, con una
@@ -322,13 +272,6 @@ jerarquía de creación estricta:
   manual del serial.
 - Historial de movimientos y resumen general (Administrador y Super Administrador).
 
-## Correcciones de la auditoría de ComVibes (v6.1)
-
-Los 15 hallazgos (H-01 a H-15) y las 2 observaciones (O-01, O-02) quedaron
-atendidos, cada uno en su propia rama integrada a `main`. El detalle de
-cada corrección, su rama, sus commits y su estado está en
-[docs/Matriz de Trazabilidad - Auditoria ComVibes.md](docs/Matriz%20de%20Trazabilidad%20-%20Auditoria%20ComVibes.md).
-
 ## Correcciones de la auditoría cruzada (Grupo ACABADOS Y DISEÑOS 1A, 07/09/2026)
 
 - **NC-6 (Seguridad — Alta):** se quitó el secreto JWT de respaldo escrito en
@@ -348,11 +291,14 @@ cada corrección, su rama, sus commits y su estado está en
   `components/entradas-salidas/`), y la lógica de clima/fecha a
   `utils/clima.js` y `utils/fechas.js`. El componente de la página ahora solo
   coordina estado y llamadas a la API.
-- **NC-5 / H-11 (Gestión de configuración — Alta):** resuelto. El
-  repositorio contiene una sola copia del proyecto en la raíz; las versiones
-  se identifican con etiquetas de Git (`v6.0`, `v6.1`, …) y ningún archivo
-  de base de datos (`.db`, `.db-shm`, `.db-wal`) se versiona en ninguna
-  carpeta. Ver "Estructura del proyecto" y "Versiones y etiquetas".
+- **NC-5 (Gestión de configuración — Alta):** el repositorio tiene varias
+  copias completas del proyecto versionadas como carpetas (`checkit_v1` …
+  `checkit_v6`) en vez de usar ramas/tags de Git, además de archivos
+  binarios de la base de datos (`.db`, `.db-shm`, `.db-wal`) commiteados por
+  error. El `.gitignore` ya se reforzó para que esos archivos nunca vuelvan
+  a versionarse; falta eliminar del repositorio las carpetas de versiones
+  antiguas (el historial de Git ya las conserva si hace falta consultarlas
+  después) — ver el paso a paso más abajo.
 
 
 El script que compartiste (`CREATE DATABASE checkIt; ... MySQL`) fue adaptado
@@ -365,65 +311,3 @@ Si en el futuro prefieres migrar a MySQL/PostgreSQL en producción, la
 estructura de tablas y relaciones es la misma; solo habría que cambiar el
 driver (`better-sqlite3` → `mysql2` o `pg`) y las consultas con parámetros
 posicionales (`?`) siguen siendo compatibles con MySQL.
-=======
-# CheckIT — Sistema de Control de Equipos de Cómputo
-
-**CheckIT** es una solución de software diseñada para gestionar el acceso, la trazabilidad y la seguridad de los equipos de cómputo y dispositivos electrónicos mediante el registro de usuarios, autenticación, control de roles y seguimiento en tiempo real de los movimientos.
-
----
-
-## 📄 Descripción
-
-CheckIT permite administrar de manera eficiente la entrada y salida de equipos tecnológicos dentro de una institución u organización, garantizando un control estricto de permisos y la persistencia de datos seguros para auditoría.
-
----
-
-## 📁 Estructura del Repositorio
-
-El proyecto cuenta con la documentación general, esquemas de base de datos e histórico de versiones del desarrollo:
-
-* **`CheckIT/`**: Versión principal del proyecto.
-* **`checkit_v1/`, `checkit_v2/`, `checkit_v3/`, `checkit_v4/`**: Módulos e historial de iteraciones del desarrollo.
-* **`database/`**: Scripts SQL, esquemas relacionales y consultas para la base de datos.
-* **`docs/`**: Diccionario de datos y documentación técnica del sistema.
-* **`test/`**: Pruebas de integración, consultas y scripts de prueba.
-
----
-
-## ⚙️ Funcionalidades Principales
-
-* **Autenticación y Sesión:** Registro e inicio de sesión seguro para los usuarios.
-* **Gestión de Usuarios y Roles:** Control de acceso granular por rol (Administrador, Usuario, Guarda de Seguridad, etc.).
-* **Control de Equipos:** Registro detallado y seguimiento en tiempo real de la entrada y salida de dispositivos.
-* **Mapeo de Base de Datos:** Scripts automatizados de estructura e inserción de datos operativos.
-
----
-
-## 🛠️ Tecnologías Utilizadas
-
-### **Frontend**
-* **React**: Librería principal para la construcción de la interfaz de usuario basada en componentes.
-* **Vite**: Bundler y entorno de desarrollo rápido.
-* **Tailwind CSS**: Framework de CSS para el diseño responsivo, estilización por clases de utilidad y componentes modulares.
-* **Lucide React**: Biblioteca de iconos vectoriales limpios y modernos.
-* **jsPDF & autoTable**: Generación dinámicas de reportes y exportación de datos en formato PDF en el cliente.
-
-### **Backend**
-* **Node.js**: Entorno de ejecución para el servidor en JavaScript.
-* **Express.js**: Framework para la creación de la API RESTful y gestión de rutas.
-* **Cors**: Middleware para la habilitación de peticiones entre dominios cruzados.
-
-### **Base de Datos & Gestión de Estado**
-* **SQLite / MySQL**: Motor de base de datos relacional para el almacenamiento de registros de entrada/salida, equipos y personas.
-* **Axios / Client API**: Cliente HTTP para consumir los endpoints del servidor en tiempo real.
-
----
-
-## 👤 Autor / Equipo TECNOSOFT
-
-Desarrollado con dedicación por:
-* **Anyi**
-* **Emerson**
-* **Doly**
-* **Santiago**
->>>>>>> 984f47e479f37fd65090cdf099e272e55c34ff96

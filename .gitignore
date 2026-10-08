@@ -19,3 +19,5 @@ backend/.seed_credenciales.txt
 # Logs locales
 backend/backup_log.txt
 backend/reinicio_log.txt
+node_modules/ 
+.env 
