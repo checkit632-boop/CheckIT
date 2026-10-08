@@ -39,6 +39,16 @@ function userView(user) {
   };
 }
 
+// H-05: el envío del correo no se espera (la respuesta HTTP no depende de
+// él), pero su promesa SIEMPRE debe tener un .catch(): un rechazo sin
+// atender (p. ej. el servidor SMTP caído) puede terminar el proceso de Node.
+function enviarCodigoSeguro(datos) {
+  return enviarCodigo(datos).catch((err) => {
+    console.error('[CheckIT] Fallo al enviar el código por correo:', err.message);
+    return { enviado: false, simulado: true };
+  });
+}
+
 function generarCodigo() {
   return String(crypto.randomInt(0, 1000000)).padStart(6, '0');
 }
@@ -152,7 +162,7 @@ router.post('/login', (req, res) => {
   if (user.correo) {
     const codigo = generarCodigo();
     guardarCodigo(user.id_usuario, 'login_2fa', codigo);
-    enviarCodigo({
+    enviarCodigoSeguro({
       correo: user.correo,
       nombre: user.nombre,
       codigo,
@@ -206,7 +216,7 @@ router.post('/login/reenviar', (req, res) => {
 
   const codigo = generarCodigo();
   guardarCodigo(user.id_usuario, 'login_2fa', codigo);
-  enviarCodigo({
+  enviarCodigoSeguro({
     correo: user.correo,
     nombre: user.nombre,
     codigo,
@@ -232,7 +242,7 @@ router.post('/forgot-password', (req, res) => {
 
   const codigo = generarCodigo();
   guardarCodigo(user.id_usuario, 'reset_password', codigo);
-  enviarCodigo({
+  enviarCodigoSeguro({
     correo: user.correo,
     nombre: user.nombre,
     codigo,
