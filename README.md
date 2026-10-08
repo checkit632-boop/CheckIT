@@ -321,6 +321,13 @@ jerarquía de creación estricta:
   manual del serial.
 - Historial de movimientos y resumen general (Administrador y Super Administrador).
 
+## Correcciones de la auditoría de ComVibes (v6.1)
+
+Los 15 hallazgos (H-01 a H-15) y las 2 observaciones (O-01, O-02) quedaron
+atendidos, cada uno en su propia rama integrada a `main`. El detalle de
+cada corrección, su rama, sus commits y su estado está en
+[docs/Matriz de Trazabilidad - Auditoria ComVibes.md](docs/Matriz%20de%20Trazabilidad%20-%20Auditoria%20ComVibes.md).
+
 ## Correcciones de la auditoría cruzada (Grupo ACABADOS Y DISEÑOS 1A, 07/09/2026)
 
 - **NC-6 (Seguridad — Alta):** se quitó el secreto JWT de respaldo escrito en
