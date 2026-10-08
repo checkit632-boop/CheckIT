@@ -123,6 +123,7 @@ router.post('/', (req, res) => {
 // PUT /api/usuarios/:id
 router.put('/:id', (req, res) => {
   const { id } = req.params;
+  // H-15: 'estado' no se toma del cuerpo a propósito (ver estadoFinal más abajo).
   const { usuario, nombre, apellidos, correo, celular, id_tipo_documento, numero_documento, password, id_rol } = req.body;
   const current = db.prepare('SELECT * FROM usuarios WHERE id_usuario = ?').get(id);
   if (!current) return res.status(404).json({ error: 'Usuario no encontrado' });
