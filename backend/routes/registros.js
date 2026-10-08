@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../db/database');
+const asyncHandler = require('../utils/asyncHandler');
 const { authRequired, requireRole, ROL_ADMIN, ROL_SUPER } = require('../middleware/auth');
 
 const router = express.Router();
@@ -27,7 +28,7 @@ const SELECT_BASE = `
 //   ?hoy=1         -> solo movimientos del día actual (se "vacía" a las 00:00)
 //   ?propios=1     -> solo los movimientos registrados por el usuario autenticado
 //                     (el Super Administrador siempre ve los de todos, sin importar este flag)
-router.get('/', (req, res) => {
+router.get('/', asyncHandler((req, res) => {
   const { limit, hoy, propios } = req.query;
   const condiciones = [];
   const params = [];
@@ -43,10 +44,10 @@ router.get('/', (req, res) => {
   const where = condiciones.length ? ` WHERE ${condiciones.join(' AND ')}` : '';
   const sql = `${SELECT_BASE}${where} ORDER BY r.id_registro DESC` + (limit ? ` LIMIT ${Number(limit)}` : '');
   res.json(db.prepare(sql).all(...params));
-});
+}));
 
 // GET /api/registros/summary (Administrador o Super Administrador)
-router.get('/summary', requireRole(ROL_ADMIN, ROL_SUPER), (req, res) => {
+router.get('/summary', requireRole(ROL_ADMIN, ROL_SUPER), asyncHandler((req, res) => {
   const totales = db.prepare(`
     SELECT tm.nombre_movimiento, COUNT(*) AS total
     FROM registros r JOIN tipos_movimiento tm ON tm.id_tipo_movimiento = r.id_tipo_movimiento
@@ -54,10 +55,10 @@ router.get('/summary', requireRole(ROL_ADMIN, ROL_SUPER), (req, res) => {
   `).all();
   const total = db.prepare('SELECT COUNT(*) c FROM registros').get().c;
   res.json({ totales, total });
-});
+}));
 
 // Estadísticas operativas para todos los roles (Control de Acceso).
-router.get('/stats/hoy', (req, res) => {
+router.get('/stats/hoy', asyncHandler((req, res) => {
   const movimientosHoy = db.prepare(`
     SELECT tm.nombre_movimiento, COUNT(*) AS total
     FROM registros r
@@ -90,7 +91,7 @@ router.get('/stats/hoy', (req, res) => {
       `).get(req.user.id_usuario).total;
 
   res.json({ entradasHoy, salidasHoy, equiposDentro, equiposRegistrados: equipos.length, misMovimientosHoy });
-});
+}));
 
 // Devuelve el último movimiento real de un equipo según el ID de registro
 function obtenerUltimoMovimiento(id_equipo) {
@@ -105,7 +106,7 @@ function obtenerUltimoMovimiento(id_equipo) {
 }
 
 // GET /api/registros/estado/:id_equipo
-router.get('/estado/:id_equipo', (req, res) => {
+router.get('/estado/:id_equipo', asyncHandler((req, res) => {
   const { id_equipo } = req.params;
   const equipo = db.prepare('SELECT * FROM equipos WHERE id_equipo = ?').get(id_equipo);
   if (!equipo) return res.status(404).json({ error: 'Equipo no encontrado' });
@@ -136,10 +137,10 @@ router.get('/estado/:id_equipo', (req, res) => {
     ultima_entrada: ultimaEntrada?.fecha_hora || null,
     ultima_salida: ultimaSalida?.fecha_hora || null,
   });
-});
+}));
 
 // POST /api/registros — registrar entrada o salida
-router.post('/', (req, res) => {
+router.post('/', asyncHandler((req, res) => {
   const { serial, tipo, observaciones } = req.body;
   if (!serial || !tipo) return res.status(400).json({ error: 'Serial y tipo de movimiento son obligatorios' });
 
@@ -177,6 +178,6 @@ router.post('/', (req, res) => {
 
   const registro = db.prepare('SELECT * FROM registros WHERE id_registro = ?').get(info.lastInsertRowid);
   res.status(201).json({ id_registro: info.lastInsertRowid, fecha_hora: registro.fecha_hora });
-});
+}));
 
 module.exports = router;

@@ -1,6 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const db = require('../db/database');
+const asyncHandler = require('../utils/asyncHandler');
 const { authRequired, requireRole, ROL_SUPER, ROL_ADMIN, ROL_OPERADOR } = require('../middleware/auth');
 
 const router = express.Router();
@@ -42,7 +43,7 @@ function nombreRolPorId(id_rol) {
 }
 
 // GET /api/usuarios
-router.get('/', (req, res) => {
+router.get('/', asyncHandler((req, res) => {
   const rows = db.prepare(`
     SELECT u.*, r.nombre_rol, td.nombre_documento FROM usuarios u
     JOIN roles r ON r.id_rol = u.id_rol
@@ -51,18 +52,18 @@ router.get('/', (req, res) => {
     ORDER BY u.id_usuario DESC
   `).all();
   res.json(rows.map(userView));
-});
+}));
 
 // GET /api/usuarios/roles/all — solo devuelve los roles que el usuario
 // autenticado tiene permiso de asignar, para poblar el formulario.
-router.get('/roles/all', (req, res) => {
+router.get('/roles/all', asyncHandler((req, res) => {
   const permitidos = rolesGestionables(req.user.rol);
   const todos = db.prepare('SELECT * FROM roles').all();
   res.json(todos.filter((r) => permitidos.includes(r.nombre_rol)));
-});
+}));
 
 // POST /api/usuarios
-router.post('/', (req, res) => {
+router.post('/', asyncHandler((req, res) => {
   const { usuario, nombre, apellidos, correo, celular, id_tipo_documento, numero_documento, password, id_rol } = req.body;
 
   if (!usuario || !nombre || !apellidos || !password || !id_rol || !id_tipo_documento || !numero_documento) {
@@ -118,10 +119,10 @@ router.post('/', (req, res) => {
 
   const id_usuario = crearUsuario();
   res.status(201).json({ id_usuario });
-});
+}));
 
 // PUT /api/usuarios/:id
-router.put('/:id', (req, res) => {
+router.put('/:id', asyncHandler((req, res) => {
   const { id } = req.params;
   // H-15: 'estado' no se toma del cuerpo a propósito (ver estadoFinal más abajo).
   const { usuario, nombre, apellidos, correo, celular, id_tipo_documento, numero_documento, password, id_rol } = req.body;
@@ -198,10 +199,10 @@ router.put('/:id', (req, res) => {
 
   actualizarUsuario();
   res.json({ message: 'Usuario actualizado' });
-});
+}));
 
 // DELETE /api/usuarios/:id
-router.delete('/:id', (req, res) => {
+router.delete('/:id', asyncHandler((req, res) => {
   const { id } = req.params;
 
   const objetivo = db.prepare('SELECT * FROM usuarios WHERE id_usuario = ?').get(id);
@@ -241,13 +242,13 @@ router.delete('/:id', (req, res) => {
 
   eliminarUsuario();
   res.json({ message: 'Usuario eliminado correctamente.' });
-});
+}));
 
 // PATCH /api/usuarios/:id/estado — activar/inactivar (solo Super Administrador).
 // Pensado para cuando la persona se retiró/dejó de trabajar: no borra nada
 // de su historial (auditoría, movimientos que registró), solo bloquea que
 // pueda volver a iniciar sesión.
-router.patch('/:id/estado', requireRole(ROL_SUPER), (req, res) => {
+router.patch('/:id/estado', requireRole(ROL_SUPER), asyncHandler((req, res) => {
   const { id } = req.params;
   const { estado } = req.body;
 
@@ -265,6 +266,6 @@ router.patch('/:id/estado', requireRole(ROL_SUPER), (req, res) => {
 
   cambiarEstado();
   res.json({ message: `Usuario ${estado ? 'activado' : 'inactivado'} correctamente` });
-});
+}));
 
 module.exports = router;

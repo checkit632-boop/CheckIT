@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../db/database');
+const asyncHandler = require('../utils/asyncHandler');
 const { JWT_SECRET, authRequired } = require('../middleware/auth');
 const { enviarCodigo } = require('../utils/mailer');
 
@@ -119,7 +120,7 @@ function limpiarIntentos(usuario) {
 // POST /api/auth/login — primer y segundo factor (usuario + contraseña).
 // Si el usuario tiene correo registrado, se envía un tercer factor
 // (código de 6 dígitos) antes de emitir el token de sesión.
-router.post('/login', (req, res) => {
+router.post('/login', asyncHandler((req, res) => {
   const { usuario, password } = req.body;
   if (!usuario || !password) return res.status(400).json({ error: 'Usuario y contraseña son obligatorios' });
 
@@ -184,10 +185,10 @@ router.post('/login', (req, res) => {
     .run(user.id_usuario, `Inicio de sesión de ${user.usuario} (sin correo, sin tercer factor)`);
   const token = signToken(user);
   res.json({ token, user: userView(user) });
-});
+}));
 
 // POST /api/auth/login/codigo — valida el tercer factor y emite el token.
-router.post('/login/codigo', (req, res) => {
+router.post('/login/codigo', asyncHandler((req, res) => {
   const { id_usuario, codigo } = req.body;
   if (!id_usuario || !codigo) return res.status(400).json({ error: 'Código requerido' });
 
@@ -206,10 +207,10 @@ router.post('/login/codigo', (req, res) => {
 
   const token = signToken(user);
   res.json({ token, user: userView(user) });
-});
+}));
 
 // POST /api/auth/login/reenviar — reenvía el código del tercer factor.
-router.post('/login/reenviar', (req, res) => {
+router.post('/login/reenviar', asyncHandler((req, res) => {
   const { id_usuario } = req.body;
   const user = db.prepare('SELECT * FROM usuarios WHERE id_usuario = ?').get(id_usuario);
   if (!user || !user.correo) return res.status(404).json({ error: 'No se puede reenviar el código' });
@@ -226,10 +227,10 @@ router.post('/login/reenviar', (req, res) => {
   });
 
   res.json({ mensaje: 'Se envió un nuevo código a tu correo.' });
-});
+}));
 
 // POST /api/auth/forgot-password — solicita el código de recuperación.
-router.post('/forgot-password', (req, res) => {
+router.post('/forgot-password', asyncHandler((req, res) => {
   const { identificador } = req.body; // usuario o correo
   if (!identificador) return res.status(400).json({ error: 'Ingresa tu usuario o correo' });
 
@@ -252,10 +253,10 @@ router.post('/forgot-password', (req, res) => {
   });
 
   res.json(respuestaGenerica);
-});
+}));
 
 // POST /api/auth/reset-password — valida el código y define la nueva contraseña.
-router.post('/reset-password', (req, res) => {
+router.post('/reset-password', asyncHandler((req, res) => {
   const { identificador, codigo, password } = req.body;
   if (!identificador || !codigo || !password) return res.status(400).json({ error: 'Todos los campos son obligatorios' });
   if (password.length < 6) return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
@@ -274,11 +275,11 @@ router.post('/reset-password', (req, res) => {
     .run(user.id_usuario, `Restablecimiento de contraseña de ${user.usuario}`);
 
   res.json({ mensaje: 'Contraseña actualizada correctamente. Ya puedes iniciar sesión.' });
-});
+}));
 
 // GET /api/auth/me
-router.get('/me', authRequired, (req, res) => {
+router.get('/me', authRequired, asyncHandler((req, res) => {
   res.json({ user: req.user });
-});
+}));
 
 module.exports = router;
