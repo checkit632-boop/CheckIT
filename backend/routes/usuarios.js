@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const db = require('../db/database');
 const asyncHandler = require('../utils/asyncHandler');
+const { validarPassword, MENSAJE_PASSWORD } = require('../utils/validarPassword');
 const { authRequired, requireRole, ROL_SUPER, ROL_ADMIN, ROL_OPERADOR } = require('../middleware/auth');
 
 const router = express.Router();
@@ -74,6 +75,10 @@ router.post('/', asyncHandler((req, res) => {
   // (PIN de acceso) y de recuperación de contraseña, así que debe ser real.
   if (!correo || !CORREO_REGEX.test(correo)) {
     return res.status(400).json({ error: 'El correo es obligatorio y debe ser una dirección real: a esa cuenta llegará el PIN de inicio de sesión.' });
+  }
+
+  if (!validarPassword(password)) {
+    return res.status(400).json({ error: MENSAJE_PASSWORD });
   }
 
   const rolSolicitado = nombreRolPorId(id_rol);
@@ -153,6 +158,10 @@ router.put('/:id', asyncHandler((req, res) => {
     }
   }
 
+  // Contraseña vacía = no cambiarla; si se envía una nueva, debe cumplir la política (H-08).
+  if (password && !validarPassword(password)) {
+    return res.status(400).json({ error: MENSAJE_PASSWORD });
+  }
   const hash = password ? bcrypt.hashSync(password, 10) : current.password_hash;
 
   // El estado (activo/inactivo) solo lo puede cambiar el Super Administrador,

@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../db/database');
 const asyncHandler = require('../utils/asyncHandler');
+const { validarPassword, MENSAJE_PASSWORD } = require('../utils/validarPassword');
 const { JWT_SECRET, authRequired } = require('../middleware/auth');
 const { enviarCodigo } = require('../utils/mailer');
 
@@ -259,7 +260,7 @@ router.post('/forgot-password', asyncHandler((req, res) => {
 router.post('/reset-password', asyncHandler((req, res) => {
   const { identificador, codigo, password } = req.body;
   if (!identificador || !codigo || !password) return res.status(400).json({ error: 'Todos los campos son obligatorios' });
-  if (password.length < 6) return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+  if (!validarPassword(password)) return res.status(400).json({ error: MENSAJE_PASSWORD });
 
   const user = db.prepare('SELECT * FROM usuarios WHERE usuario = ? OR correo = ?').get(identificador, identificador);
   if (!user) return res.status(400).json({ error: 'Código incorrecto o expirado' });

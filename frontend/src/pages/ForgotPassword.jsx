@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { KeyRound, AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
 import api from '../api/client';
+import { validarPassword, MENSAJE_PASSWORD } from '../utils/validarPassword';
 import AuthBackground from '../components/AuthBackground';
 
 export default function ForgotPassword() {
@@ -34,7 +35,7 @@ export default function ForgotPassword() {
     e.preventDefault();
     setError('');
     if (password !== password2) { setError('Las contraseñas no coinciden'); return; }
-    if (password.length < 6) { setError('La contraseña debe tener al menos 6 caracteres'); return; }
+    if (!validarPassword(password)) { setError(MENSAJE_PASSWORD); return; }
 
     setLoading(true);
     try {

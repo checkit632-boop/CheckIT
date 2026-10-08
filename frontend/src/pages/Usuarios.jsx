@@ -4,6 +4,7 @@ import api from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
+import { validarPassword, MENSAJE_PASSWORD } from '../utils/validarPassword';
 
 const inputCls = 'mt-1 w-full border border-gray-200 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500';
 const labelCls = 'text-sm font-semibold text-gray-700 dark:text-gray-300';
@@ -78,12 +79,19 @@ export default function Usuarios() {
       showToast('El correo es obligatorio y debe ser real: ahí llegará el PIN de inicio de sesión', 'error');
       return;
     }
+    if (!editingId && !form.password) {
+      showToast('La contraseña es obligatoria para usuarios nuevos', 'error');
+      return;
+    }
+    if (form.password && !validarPassword(form.password)) {
+      showToast(MENSAJE_PASSWORD, 'error');
+      return;
+    }
     try {
       if (editingId) {
         await api.put(`/usuarios/${editingId}`, form);
         showToast('Usuario actualizado exitosamente');
       } else {
-        if (!form.password) { showToast('La contraseña es obligatoria para usuarios nuevos', 'error'); return; }
         await api.post('/usuarios', form);
         showToast('Usuario registrado exitosamente');
       }
@@ -232,6 +240,7 @@ export default function Usuarios() {
           <div>
             <label className={labelCls}>Contraseña {editingId && <span className="text-gray-400 dark:text-gray-500 font-normal">(dejar en blanco para no cambiar)</span>}</label>
             <input type="password" className={inputCls} value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} />
+            <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1">Mínimo 8 caracteres, con mayúscula, minúscula y número.</p>
           </div>
           <div>
             <label className={labelCls}>Rol</label>
