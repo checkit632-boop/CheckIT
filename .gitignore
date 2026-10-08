@@ -1,10 +1,21 @@
 node_modules/
 backend/.env
-backend/db/checkit.db
-backend/db/checkit.db-shm
-backend/db/checkit.db-wal
+.env
+.DS_Store
+frontend/dist/
+
+# H-03: ninguna base de datos SQLite se versiona, en ninguna carpeta.
+# Los datos de prueba se comparten con backend/scripts/seed.js.
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Archivos locales con credenciales generadas (H-02 / H-03)
 backend/.super_admin_password_inicial.txt
+backend/.seed_credenciales.txt
+
+# Logs locales
 backend/backup_log.txt
 backend/reinicio_log.txt
-frontend/dist/
-.DS_Store
