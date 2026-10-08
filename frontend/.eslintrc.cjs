@@ -21,6 +21,7 @@ module.exports = {
     // Avisa (no rompe) por variables/importaciones sin usar, salvo que
     // empiecen con "_" (convención para "sé que no se usa, es intencional").
     'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
-    'no-console': 'off',
+    // H-12: console.log no debe llegar a producción; warn/error sí se permiten.
+    'no-console': ['warn', { allow: ['warn', 'error'] }],
   },
 };

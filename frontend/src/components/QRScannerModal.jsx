@@ -73,9 +73,14 @@ export default function QRScannerModal({ open, onClose, onResult }) {
 
     readerRef.current.id = id;
 
-    console.log("Es contexto seguro:", window.isSecureContext);
-    console.log("MediaDevices:", navigator.mediaDevices);
-    console.log("getUserMedia:", navigator.mediaDevices?.getUserMedia);
+    // H-12: los navegadores solo dan acceso a la cámara en HTTPS o localhost.
+    // Se avisa en la interfaz (en vez de volcar diagnósticos a la consola) y se
+    // deja disponible el ingreso manual del serial.
+    if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+      setStatus({ type: 'error', msg: 'El escáner requiere HTTPS o localhost. Ingresa el serial manualmente.' });
+      setCameraError(true);
+      return;
+    }
 
     const scanner = new Html5Qrcode(id);
     scannerRef.current = scanner;
