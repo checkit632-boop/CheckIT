@@ -135,6 +135,7 @@ CREATE TABLE IF NOT EXISTS codigos_verificacion (
   tipo           TEXT NOT NULL CHECK (tipo IN ('reset_password','login_2fa')),
   expira         DATETIME NOT NULL,
   usado          INTEGER NOT NULL DEFAULT 0,
+  intentos       INTEGER NOT NULL DEFAULT 0, -- O-02: códigos incorrectos; a los 5 se invalida
   fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario)
 );
