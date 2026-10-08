@@ -13,6 +13,7 @@ const router = express.Router();
 const MAX_INTENTOS = 5;
 const BLOQUEO_MINUTOS = 3;
 const CODIGO_EXPIRA_MINUTOS = 3;
+const MAX_INTENTOS_CODIGO = 5;
 
 function signToken(user) {
   return jwt.sign(
@@ -76,7 +77,19 @@ function validarCodigo(id_usuario, tipo, codigo) {
 
   if (!row) return { ok: false, error: 'No hay un código pendiente. Solicita uno nuevo.' };
   if (new Date(row.expira).getTime() < Date.now()) return { ok: false, error: 'El código ha expirado. Solicita uno nuevo.' };
-  if (!bcrypt.compareSync(String(codigo), row.codigo_hash)) return { ok: false, error: 'Código incorrecto.' };
+  if (!bcrypt.compareSync(String(codigo), row.codigo_hash)) {
+    // O-02: el bloqueo de login_intentos no cubre este paso, así que cada
+    // código cuenta sus propios fallos. Al llegar al máximo se invalida
+    // aunque no haya vencido, y hay que pedir uno nuevo (que llega al correo).
+    const intentos = row.intentos + 1;
+    if (intentos >= MAX_INTENTOS_CODIGO) {
+      db.prepare('UPDATE codigos_verificacion SET intentos = ?, usado = 1 WHERE id_codigo = ?').run(intentos, row.id_codigo);
+      return { ok: false, status: 429, error: 'Demasiados intentos. Solicita un nuevo código.' };
+    }
+    db.prepare('UPDATE codigos_verificacion SET intentos = ? WHERE id_codigo = ?').run(intentos, row.id_codigo);
+    const restantes = MAX_INTENTOS_CODIGO - intentos;
+    return { ok: false, error: `Código incorrecto. Te queda${restantes === 1 ? '' : 'n'} ${restantes} intento${restantes === 1 ? '' : 's'}.` };
+  }
 
   db.prepare('UPDATE codigos_verificacion SET usado = 1 WHERE id_codigo = ?').run(row.id_codigo);
   return { ok: true };
@@ -201,7 +214,7 @@ router.post('/login/codigo', asyncHandler((req, res) => {
   if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
 
   const resultado = validarCodigo(id_usuario, 'login_2fa', codigo);
-  if (!resultado.ok) return res.status(401).json({ error: resultado.error });
+  if (!resultado.ok) return res.status(resultado.status || 401).json({ error: resultado.error });
 
   db.prepare(`INSERT INTO auditoria (id_usuario, accion, tabla_afectada, descripcion) VALUES (?, 'LOGIN', 'usuarios', ?)`)
     .run(user.id_usuario, `Inicio de sesión de ${user.usuario} (verificado con tercer factor)`);
@@ -266,7 +279,7 @@ router.post('/reset-password', asyncHandler((req, res) => {
   if (!user) return res.status(400).json({ error: 'Código incorrecto o expirado' });
 
   const resultado = validarCodigo(user.id_usuario, 'reset_password', codigo);
-  if (!resultado.ok) return res.status(400).json({ error: resultado.error });
+  if (!resultado.ok) return res.status(resultado.status || 400).json({ error: resultado.error });
 
   const hash = bcrypt.hashSync(password, 10);
   db.prepare('UPDATE usuarios SET password_hash = ? WHERE id_usuario = ?').run(hash, user.id_usuario);

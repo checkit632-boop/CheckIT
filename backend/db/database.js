@@ -50,6 +50,11 @@ function migrate() {
     ON usuarios(numero_documento) WHERE numero_documento IS NOT NULL
   `);
 
+  // O-02: contador de intentos fallidos por código de verificación.
+  if (!columnExists('codigos_verificacion', 'intentos')) {
+    db.exec('ALTER TABLE codigos_verificacion ADD COLUMN intentos INTEGER NOT NULL DEFAULT 0');
+  }
+
   if (!columnExists('equipos', 'activo')) {
     db.exec('ALTER TABLE equipos ADD COLUMN activo INTEGER NOT NULL DEFAULT 1');
   }

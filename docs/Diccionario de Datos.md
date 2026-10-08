@@ -130,4 +130,5 @@ Códigos de 6 dígitos para el tercer factor del login (`login_2fa`) y para
 | tipo | TEXT | NN, CHECK | `reset_password` o `login_2fa` |
 | expira | DATETIME | NN | Momento de vencimiento |
 | usado | INTEGER | NN, por defecto 0 | 1 = ya usado o invalidado |
+| intentos | INTEGER | NN, por defecto 0 | Códigos incorrectos ingresados; al llegar a 5 el código se invalida (O-02) |
 | fecha_creacion | DATETIME | por defecto ahora | Fecha de emisión |
