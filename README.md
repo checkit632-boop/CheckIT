@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # CheckIT — Sistema de Control de Equipos
 
 Conversión completa del prototipo original (HTML/CSS/JS + localStorage) a una
@@ -426,4 +425,3 @@ Desarrollado con dedicación por:
 * **Emerson**
 * **Doly**
 * **Santiago**
->>>>>>> 984f47e479f37fd65090cdf099e272e55c34ff96
