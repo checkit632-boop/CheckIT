@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
 import EquipmentQRModal from '../components/EquipmentQRModal';
 import useDebounce from '../hooks/useDebounce';
+import AvisoPrivacidad from '../components/AvisoPrivacidad';
 
 // Equipos por página del inventario (la paginación y la búsqueda las hace el
 // servidor: la pantalla ya no descarga todo el inventario ni todas las
@@ -302,9 +303,10 @@ export default function Equipos() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <input className={inputCls + ' mt-0'} placeholder="N.° Documento" value={personaForm.numero_documento} onChange={(e) => setPersonaForm((f) => ({ ...f, numero_documento: e.target.value }))} />
-                  <input className={inputCls + ' mt-0'} placeholder="Celular" value={personaForm.celular} onChange={(e) => setPersonaForm((f) => ({ ...f, celular: e.target.value }))} />
+                  <input className={inputCls + ' mt-0'} placeholder="Celular (opcional)" value={personaForm.celular} onChange={(e) => setPersonaForm((f) => ({ ...f, celular: e.target.value }))} />
                 </div>
-                <input className={inputCls + ' mt-0'} placeholder="Correo" value={personaForm.correo} onChange={(e) => setPersonaForm((f) => ({ ...f, correo: e.target.value }))} />
+                <input className={inputCls + ' mt-0'} placeholder="Correo (opcional)" value={personaForm.correo} onChange={(e) => setPersonaForm((f) => ({ ...f, correo: e.target.value }))} />
+                <AvisoPrivacidad />
                 <button type="button" onClick={() => setNuevaPersona(false)} className="text-xs text-gray-500 hover:underline">Cancelar y buscar existente</button>
               </div>
             )}

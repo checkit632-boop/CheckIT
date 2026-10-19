@@ -16,6 +16,7 @@ import useLectorCodigos from '../hooks/useLectorCodigos';
 import ValidarAccesoCard from '../components/entradas-salidas/ValidarAccesoCard';
 import MovimientosRecientesPanel from '../components/entradas-salidas/MovimientosRecientesPanel';
 import EstadoSistemaFooter from '../components/entradas-salidas/EstadoSistemaFooter';
+import AvisoPrivacidad from '../components/AvisoPrivacidad';
 
 // Agrupación que ordena el equipo recién escaneado al inicio de la tabla
 function agruparMovimientos(logs) {
@@ -309,6 +310,7 @@ export default function ControlAccesos() {
 
       {/* 4. FOOTER ESTADO DEL SISTEMA */}
       <EstadoSistemaFooter lastUpdate={lastUpdate} />
+      <AvisoPrivacidad compacto />
 
       <QRScannerModal open={scannerOpen} onClose={() => setScannerOpen(false)} onResult={(codigo) => escanear(codigo, 'camara')} />
 
