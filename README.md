@@ -33,7 +33,7 @@ sino como **etiquetas de Git** (ver "Versiones y etiquetas" más abajo).
 │   │   ├── auth.js          Login (con tercer factor), recuperar contraseña
 │   │   ├── usuarios.js      Gestión de usuarios (Super Administrador / Administrador)
 │   │   ├── personas.js      Personas (propietarias de equipos)
-│   │   ├── equipos.js       Inventario de computadores + generación de QR
+│   │   ├── equipos.js       Inventario de computadores (el QR se genera en el navegador)
 │   │   ├── registros.js     Entradas / salidas
 │   │   ├── catalogos.js     Marcas, estados, tipos de documento/movimiento
 │   │   └── dashboard.js     Indicadores del tablero
@@ -322,8 +322,8 @@ jerarquía de creación estricta:
 
 ## Funcionalidad conservada del prototipo original
 
-- Generación de código QR por equipo (ahora generado en el servidor con la
-  librería `qrcode`, y descargable/imprimible desde el frontend).
+- Generación de código QR por equipo (generado en el navegador con la
+  librería `qrcode`, descargable e imprimible).
 - Escáner de QR con cámara (librería `html5-qrcode`) con respaldo de ingreso
   manual del serial.
 - Historial de movimientos y resumen general (Administrador y Super Administrador).
