@@ -87,15 +87,19 @@ router.get('/stats/hoy', asyncHandler((req, res) => {
   const entradasHoy = movimientosHoy.find(m => m.nombre_movimiento?.toLowerCase() === 'entrada')?.total || 0;
   const salidasHoy = movimientosHoy.find(m => m.nombre_movimiento?.toLowerCase() === 'salida')?.total || 0;
 
-  const equipos = db.prepare(`SELECT id_equipo FROM equipos`).all();
-  let equiposDentro = 0;
-
-  for (const equipo of equipos) {
-    const ultimo = obtenerUltimoMovimiento(equipo.id_equipo);
-    if (ultimo && ultimo.nombre_movimiento?.toLowerCase() === 'entrada') {
-      equiposDentro++;
-    }
-  }
+  // Un equipo está "adentro" si su último movimiento (el de mayor
+  // id_registro, igual que obtenerUltimoMovimiento) es una entrada. Se
+  // resuelve en una sola consulta con idx_registros_equipo, en vez de una
+  // consulta por cada equipo.
+  const { equiposRegistrados, equiposDentro } = db.prepare(`
+    SELECT
+      (SELECT COUNT(*) FROM equipos) AS equiposRegistrados,
+      (SELECT COUNT(*)
+         FROM equipos e
+         JOIN registros r ON r.id_registro = (SELECT MAX(id_registro) FROM registros WHERE id_equipo = e.id_equipo)
+         JOIN tipos_movimiento tm ON tm.id_tipo_movimiento = r.id_tipo_movimiento
+        WHERE LOWER(tm.nombre_movimiento) = 'entrada') AS equiposDentro
+  `).get();
 
   // Movimientos de hoy hechos por el usuario autenticado. El Super
   // Administrador ve el total global (de todos los usuarios); Administrador
@@ -107,7 +111,7 @@ router.get('/stats/hoy', asyncHandler((req, res) => {
         WHERE ${rangoLocal('r.fecha_hora')} AND r.id_usuario = ?
       `).get(req.user.id_usuario).total;
 
-  res.json({ entradasHoy, salidasHoy, equiposDentro, equiposRegistrados: equipos.length, misMovimientosHoy });
+  res.json({ entradasHoy, salidasHoy, equiposDentro, equiposRegistrados, misMovimientosHoy });
 }));
 
 // Devuelve el último movimiento real de un equipo según el ID de registro
