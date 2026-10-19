@@ -16,6 +16,19 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import ExcelJS from 'exceljs';
 import api from '../api/client';
+import {
+  PERIODOS_HISTORIAL,
+  PERIODO_POR_DEFECTO,
+  agruparEnCiclos,
+  campoDeFiltro,
+  fechaLocalISO,
+  filtrarCiclos,
+  rangoUltimosDias,
+} from '../utils/resumen';
+
+// La tabla muestra los ciclos de a este número, para no pintar miles de
+// filas de una vez.
+const CICLOS_POR_PAGINA = 100;
 
 const fmtDateOnly = (fechaStr) => {
   if (!fechaStr) return '—';
@@ -67,6 +80,10 @@ export default function Resumen() {
   const [filterType, setFilterType] = useState('todos');
   const [filterValue, setFilterValue] = useState('');
 
+  // Período cargado en la tabla y cuántos ciclos se muestran de él.
+  const [periodoHistorial, setPeriodoHistorial] = useState(PERIODO_POR_DEFECTO);
+  const [ciclosVisibles, setCiclosVisibles] = useState(CICLOS_POR_PAGINA);
+
   // Modal Exportación
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState('pdf');
@@ -89,25 +106,20 @@ export default function Resumen() {
     'CheckIT - Sistema Inteligente de Control de Equipos'
   );
 
-  // 1. Cargar datos generales
+  // 1. Cargar datos generales. Solo depende del período: buscar y filtrar se
+  // hace sobre los ciclos ya cargados, sin volver a pedirlos al servidor.
   const cargarDatos = useCallback(() => {
     api
       .get('/registros/summary')
       .then((res) => setSummary(res.data))
       .catch(() => {});
     api
-      .get('/registros', {
-        params: {
-          search: searchTerm,
-          filterType: filterType !== 'todos' ? filterType : undefined,
-          filterValue: filterValue || undefined,
-        },
-      })
+      .get('/registros', { params: rangoUltimosDias(Number(periodoHistorial)) })
       .then((res) => {
         setRegistros(res.data || []);
       })
       .catch(() => {});
-  }, [searchTerm, filterType, filterValue]);
+  }, [periodoHistorial]);
 
   useEffect(() => {
     cargarDatos();
@@ -116,94 +128,13 @@ export default function Resumen() {
   const entradas = summary.totales?.find((t) => t.nombre_movimiento === 'Entrada')?.total || 0;
   const salidas = summary.totales?.find((t) => t.nombre_movimiento === 'Salida')?.total || 0;
 
-  // 2. Agrupación por Ciclos (Entrada / Salida) manteniendo el historial completo
-  const registrosAgrupados = useMemo(() => {
-    if (!registros || registros.length === 0) return [];
-
-    const logsOrdenados = [...registros].sort(
-      (a, b) => (a.id_registro || 0) - (b.id_registro || 0)
-    );
-
-    const ciclosCompletados = [];
-    const ciclosActivos = new Map();
-    const contadorCiclos = new Map();
-
-    logsOrdenados.forEach((m) => {
-      const nombrePersona =
-        `${m.persona_nombres || ''} ${m.persona_apellidos || ''}`.trim() || 'Sin asignar';
-      const equipoInfo = `${m.nombre_marca || ''} ${m.modelo || ''}`.trim() || 'Equipo';
-      const tipo = (m.nombre_movimiento || '').toLowerCase();
-      const serial = m.serial;
-
-      if (tipo === 'entrada') {
-        if (ciclosActivos.has(serial)) {
-          ciclosCompletados.push(ciclosActivos.get(serial));
-          ciclosActivos.delete(serial);
-        }
-
-        const numCiclo = (contadorCiclos.get(serial) || 0) + 1;
-        contadorCiclos.set(serial, numCiclo);
-
-        const nuevoCiclo = {
-          cicloKey: `${serial}_ciclo_${numCiclo}_${m.id_registro}`,
-          persona: nombrePersona,
-          documento: m.numero_documento || '',
-          equipo: equipoInfo,
-          serial: serial,
-          entrada: m.fecha_hora,
-          salida: null,
-          observaciones: m.observaciones_equipo || '',
-          registrado_por: m.registrado_por || 'admin',
-          ultimoIdRegistro: m.id_registro || 0,
-        };
-
-        ciclosActivos.set(serial, nuevoCiclo);
-      } else if (tipo === 'salida') {
-        if (ciclosActivos.has(serial)) {
-          const cicloEnProgreso = ciclosActivos.get(serial);
-          cicloEnProgreso.salida = m.fecha_hora;
-          cicloEnProgreso.ultimoIdRegistro = m.id_registro || cicloEnProgreso.ultimoIdRegistro;
-
-          ciclosCompletados.push(cicloEnProgreso);
-          ciclosActivos.delete(serial);
-        } else {
-          const numCiclo = (contadorCiclos.get(serial) || 0) + 1;
-          contadorCiclos.set(serial, numCiclo);
-
-          ciclosCompletados.push({
-            cicloKey: `${serial}_salida_aislada_${numCiclo}_${m.id_registro}`,
-            persona: nombrePersona,
-            documento: m.numero_documento || '',
-            equipo: equipoInfo,
-            serial: serial,
-            entrada: null,
-            salida: m.fecha_hora,
-            observaciones: m.observaciones_equipo || '',
-            registrado_por: m.registrado_por || 'admin',
-            ultimoIdRegistro: m.id_registro || 0,
-          });
-        }
-      }
-    });
-
-    ciclosActivos.forEach((ciclo) => {
-      ciclosCompletados.push(ciclo);
-    });
-
-    return ciclosCompletados.sort((a, b) => b.ultimoIdRegistro - a.ultimoIdRegistro);
-  }, [registros]);
+  // 2. Agrupación por ciclos (entrada / salida), ver utils/resumen.js
+  const registrosAgrupados = useMemo(() => agruparEnCiclos(registros), [registros]);
 
   // 3. Opciones dinámicas para el selector
   const filterOptions = useMemo(() => {
     if (filterType === 'todos') return [];
-    const targetKey =
-      filterType === 'persona'
-        ? 'persona'
-        : filterType === 'equipo'
-          ? 'equipo'
-          : filterType === 'serial'
-            ? 'serial'
-            : 'registrado_por';
+    const targetKey = campoDeFiltro(filterType);
     const setValores = new Set();
     registrosAgrupados.forEach((item) => {
       if (item[targetKey]) setValores.add(item[targetKey]);
@@ -211,35 +142,18 @@ export default function Resumen() {
     return Array.from(setValores).sort();
   }, [registrosAgrupados, filterType]);
 
-  // 4. Filtro cliente local (Respaldo inmediato)
-  const registrosFiltrados = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
+  // 4. Filtro local sobre los ciclos del período cargado
+  const registrosFiltrados = useMemo(
+    () => filtrarCiclos(registrosAgrupados, searchTerm, filterType, filterValue),
+    [registrosAgrupados, searchTerm, filterType, filterValue]
+  );
 
-    return registrosAgrupados.filter((item) => {
-      const matchSearch =
-        !term ||
-        (item.persona && item.persona.toLowerCase().includes(term)) ||
-        (item.documento && item.documento.toLowerCase().includes(term)) ||
-        (item.equipo && item.equipo.toLowerCase().includes(term)) ||
-        (item.serial && item.serial.toLowerCase().includes(term)) ||
-        (item.registrado_por && item.registrado_por.toLowerCase().includes(term));
+  // Al cambiar el período o los filtros se vuelve a la primera página.
+  useEffect(() => {
+    setCiclosVisibles(CICLOS_POR_PAGINA);
+  }, [periodoHistorial, searchTerm, filterType, filterValue]);
 
-      let matchDropdown = true;
-      if (filterType !== 'todos' && filterValue) {
-        const targetKey =
-          filterType === 'persona'
-            ? 'persona'
-            : filterType === 'equipo'
-              ? 'equipo'
-              : filterType === 'serial'
-                ? 'serial'
-                : 'registrado_por';
-        matchDropdown = item[targetKey] === filterValue;
-      }
-
-      return matchSearch && matchDropdown;
-    });
-  }, [registrosAgrupados, searchTerm, filterType, filterValue]);
+  const ciclosEnPantalla = registrosFiltrados.slice(0, ciclosVisibles);
 
   const openExportModal = (format) => {
     setExportFormat(format);
@@ -508,7 +422,19 @@ export default function Resumen() {
         fechaInicio.setHours(0, 0, 0);
       }
 
-      const dataExtraida = registrosFiltrados
+      // El reporte pide al servidor exactamente su rango (puede ser más amplio
+      // que el período cargado en la tabla) y le aplica los mismos filtros.
+      const { data: movimientosDelRango } = await api.get('/registros', {
+        params: { desde: fechaLocalISO(fechaInicio), hasta: fechaLocalISO(fechaFin) },
+      });
+      const ciclosDelRango = filtrarCiclos(
+        agruparEnCiclos(movimientosDelRango),
+        searchTerm,
+        filterType,
+        filterValue
+      );
+
+      const dataExtraida = ciclosDelRango
         .filter((item) => {
           const fechaRef = new Date(item.entrada || item.salida);
           return fechaRef >= fechaInicio && fechaRef <= fechaFin;
@@ -846,11 +772,25 @@ export default function Resumen() {
       {/* TABLA HISTORIAL */}
       <div className="flex-1 flex flex-col min-h-0 bg-surface dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
         <div className="flex-none px-5 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
-          <div className="font-bold text-gray-900 dark:text-gray-100 text-sm">
-            Historial de Movimientos
+          <div className="flex items-center gap-3">
+            <div className="font-bold text-gray-900 dark:text-gray-100 text-sm">
+              Historial de Movimientos
+            </div>
+            <select
+              value={periodoHistorial}
+              onChange={(e) => setPeriodoHistorial(e.target.value)}
+              className="text-xs border border-gray-200 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 rounded-lg px-2 py-1 focus:outline-none focus:border-brand-500"
+              aria-label="Período del historial"
+            >
+              {PERIODOS_HISTORIAL.map((p) => (
+                <option key={p.valor} value={p.valor}>
+                  {p.etiqueta}
+                </option>
+              ))}
+            </select>
           </div>
           <span className="text-xs text-gray-400 dark:text-gray-500 font-medium">
-            {registrosFiltrados.length} registros encontrados
+            {registrosFiltrados.length} registros encontrados en el período
           </span>
         </div>
 
@@ -875,7 +815,7 @@ export default function Resumen() {
                   </td>
                 </tr>
               ) : (
-                registrosFiltrados.map((m) => (
+                ciclosEnPantalla.map((m) => (
                   <tr
                     key={m.cicloKey}
                     className="hover:bg-gray-50/80 dark:hover:bg-gray-700/40 transition-colors"
@@ -934,6 +874,16 @@ export default function Resumen() {
               )}
             </tbody>
           </table>
+          {ciclosEnPantalla.length < registrosFiltrados.length && (
+            <div className="flex justify-center py-3 border-t border-gray-100 dark:border-gray-700">
+              <button
+                onClick={() => setCiclosVisibles((n) => n + CICLOS_POR_PAGINA)}
+                className="text-xs font-semibold text-brand-600 dark:text-brand-300 hover:underline"
+              >
+                Mostrar más ({ciclosEnPantalla.length} de {registrosFiltrados.length})
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
