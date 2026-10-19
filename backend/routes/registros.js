@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db/database');
 const asyncHandler = require('../utils/asyncHandler');
+const { rangoLocal } = require('../utils/periodos');
 const { authRequired, requireRole, ROL_ADMIN, ROL_SUPER } = require('../middleware/auth');
 
 const router = express.Router();
@@ -37,7 +38,7 @@ router.get('/', asyncHandler((req, res) => {
   const params = [];
 
   if (hoy) {
-    condiciones.push(`date(r.fecha_hora) = date('now','localtime')`);
+    condiciones.push(rangoLocal('r.fecha_hora'));
   }
   if (propios && req.user.rol !== ROL_SUPER) {
     condiciones.push(`r.id_usuario = ?`);
@@ -79,7 +80,7 @@ router.get('/stats/hoy', asyncHandler((req, res) => {
     SELECT tm.nombre_movimiento, COUNT(*) AS total
     FROM registros r
     JOIN tipos_movimiento tm ON tm.id_tipo_movimiento = r.id_tipo_movimiento
-    WHERE date(r.fecha_hora) = date('now','localtime')
+    WHERE ${rangoLocal('r.fecha_hora')}
     GROUP BY tm.nombre_movimiento
   `).all();
 
@@ -103,7 +104,7 @@ router.get('/stats/hoy', asyncHandler((req, res) => {
     ? entradasHoy + salidasHoy
     : db.prepare(`
         SELECT COUNT(*) AS total FROM registros r
-        WHERE date(r.fecha_hora) = date('now','localtime') AND r.id_usuario = ?
+        WHERE ${rangoLocal('r.fecha_hora')} AND r.id_usuario = ?
       `).get(req.user.id_usuario).total;
 
   res.json({ entradasHoy, salidasHoy, equiposDentro, equiposRegistrados: equipos.length, misMovimientosHoy });
