@@ -1,30 +1,35 @@
 const express = require('express');
 const db = require('../db/database');
+const { patronContiene } = require('../utils/busqueda');
 const { authRequired, requireRole, ROL_ADMIN, ROL_SUPER } = require('../middleware/auth');
 
 const router = express.Router();
 router.use(authRequired);
 
 // GET /api/personas  (ambos roles — se usa para búsquedas en Entradas/Salidas y Equipos)
+//   ?q=texto   -> busca en nombres, apellidos y documento (también "nombre apellido")
+//   ?limit=N   -> máximo N resultados (1 a 50); lo usa el buscador de
+//                 propietarios de Equipos, que solo muestra unos pocos
 router.get('/', (req, res) => {
   const { q } = req.query;
-  let rows;
+  const condiciones = [];
+  const params = [];
   if (q) {
-    const like = `%${q}%`;
-    rows = db.prepare(`
-      SELECT p.*, td.nombre_documento FROM personas p
-      JOIN tipos_documento td ON td.id_tipo_documento = p.id_tipo_documento
-      WHERE p.numero_documento LIKE ? OR p.nombres LIKE ? OR p.apellidos LIKE ?
-      ORDER BY p.id_persona DESC
-    `).all(like, like, like);
-  } else {
-    rows = db.prepare(`
-      SELECT p.*, td.nombre_documento FROM personas p
-      JOIN tipos_documento td ON td.id_tipo_documento = p.id_tipo_documento
-      ORDER BY p.id_persona DESC
-    `).all();
+    condiciones.push(`(p.nombres || ' ' || p.apellidos || ' ' || p.numero_documento) LIKE ? ESCAPE '!'`);
+    params.push(patronContiene(q));
   }
-  res.json(rows);
+  let sql = `
+    SELECT p.*, td.nombre_documento FROM personas p
+    JOIN tipos_documento td ON td.id_tipo_documento = p.id_tipo_documento
+    ${condiciones.length ? `WHERE ${condiciones.join(' AND ')}` : ''}
+    ORDER BY p.id_persona DESC
+  `;
+  const limite = Number.parseInt(req.query.limit, 10);
+  if (Number.isInteger(limite) && limite > 0) {
+    sql += ' LIMIT ?';
+    params.push(Math.min(limite, 50));
+  }
+  res.json(db.prepare(sql).all(...params));
 });
 
 // GET /api/personas/documento/:numero

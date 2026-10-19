@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../db/database');
+const { patronContiene } = require('../utils/busqueda');
 const { authRequired, requireRole, ROL_ADMIN, ROL_SUPER } = require('../middleware/auth');
 
 const router = express.Router();
@@ -14,9 +15,36 @@ const SELECT_BASE = `
   JOIN personas p ON p.id_persona = e.id_persona
 `;
 
+// Mismos campos que buscaba la pantalla de Equipos en el navegador.
+const TEXTO_BUSCABLE = `(e.serial || ' ' || m.nombre_marca || ' ' || IFNULL(e.modelo, '') || ' ' || p.nombres || ' ' || p.apellidos)`;
+const POR_PAGINA_DEFECTO = 25;
+const POR_PAGINA_MAXIMO = 100;
+
 // GET /api/equipos  (todos los roles)
+//   ?pagina=N&por_pagina=M&q=texto -> { datos, total, pagina, por_pagina }:
+//     una página del inventario (auditoría 1.3: la pantalla ya no descarga
+//     todos los equipos). Sin ?pagina responde como antes (arreglo completo).
 router.get('/', (req, res) => {
   const { q } = req.query;
+
+  if (req.query.pagina !== undefined) {
+    const pagina = Math.max(1, Number.parseInt(req.query.pagina, 10) || 1);
+    const pedidos = Number.parseInt(req.query.por_pagina, 10);
+    const porPagina = Number.isInteger(pedidos) && pedidos > 0 ? Math.min(pedidos, POR_PAGINA_MAXIMO) : POR_PAGINA_DEFECTO;
+    const filtro = q ? `WHERE ${TEXTO_BUSCABLE} LIKE ? ESCAPE '!'` : '';
+    const params = q ? [patronContiene(q)] : [];
+
+    const total = db.prepare(`
+      SELECT COUNT(*) FROM equipos e
+      JOIN marcas m ON m.id_marca = e.id_marca
+      JOIN personas p ON p.id_persona = e.id_persona
+      ${filtro}
+    `).pluck().get(...params);
+    const datos = db.prepare(`${SELECT_BASE} ${filtro} ORDER BY e.id_equipo DESC LIMIT ? OFFSET ?`)
+      .all(...params, porPagina, (pagina - 1) * porPagina);
+    return res.json({ datos, total, pagina, por_pagina: porPagina });
+  }
+
   let rows;
   if (q) {
     const like = `%${q}%`;
