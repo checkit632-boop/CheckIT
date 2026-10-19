@@ -1,10 +1,16 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Search, Plus, Pencil, Trash2, QrCode, Power, PowerOff } from 'lucide-react';
 import api from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
 import EquipmentQRModal from '../components/EquipmentQRModal';
+import useDebounce from '../hooks/useDebounce';
+
+// Equipos por página del inventario (la paginación y la búsqueda las hace el
+// servidor: la pantalla ya no descarga todo el inventario ni todas las
+// personas).
+const POR_PAGINA = 25;
 
 const inputCls = 'mt-1 w-full border border-gray-200 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500';
 const labelCls = 'text-sm font-semibold text-gray-700 dark:text-gray-300';
@@ -20,7 +26,9 @@ export default function Equipos() {
   const { showToast } = useToast();
 
   const [equipos, setEquipos] = useState([]);
-  const [personas, setPersonas] = useState([]);
+  const [totalEquipos, setTotalEquipos] = useState(0);
+  const [pagina, setPagina] = useState(1);
+  const [personasEncontradas, setPersonasEncontradas] = useState([]);
   const [marcas, setMarcas] = useState([]);
   const [estados, setEstados] = useState([]);
   const [search, setSearch] = useState('');
@@ -34,35 +42,44 @@ export default function Equipos() {
   const [personaForm, setPersonaForm] = useState({ id_tipo_documento: 1, numero_documento: '', nombres: '', apellidos: '', correo: '', celular: '' });
   const [personaSearch, setPersonaSearch] = useState('');
 
+  const busqueda = useDebounce(search.trim(), 300);
+  const busquedaPersona = useDebounce(personaSearch.trim(), 300);
+
+  // Catálogos del formulario: se cargan una sola vez.
+  useEffect(() => {
+    Promise.all([api.get('/catalogos/marcas'), api.get('/catalogos/estados')])
+      .then(([mar, est]) => { setMarcas(mar.data); setEstados(est.data); })
+      .catch(() => showToast('Error al cargar los datos', 'error'));
+  }, [showToast]);
+
+  // Una página del inventario, filtrada en el servidor.
   const loadAll = useCallback(async () => {
     try {
-      const [eq, per, mar, est] = await Promise.all([
-        api.get('/equipos'), api.get('/personas'), api.get('/catalogos/marcas'), api.get('/catalogos/estados'),
-      ]);
-      setEquipos(eq.data);
-      setPersonas(per.data);
-      setMarcas(mar.data);
-      setEstados(est.data);
+      const { data } = await api.get('/equipos', {
+        params: { pagina, por_pagina: POR_PAGINA, q: busqueda || undefined },
+      });
+      // Si se eliminó el último equipo de la última página, retrocede una.
+      if (data.datos.length === 0 && pagina > 1) { setPagina(pagina - 1); return; }
+      setEquipos(data.datos);
+      setTotalEquipos(data.total);
     } catch (err) {
       showToast('Error al cargar los datos', 'error');
     }
-  }, [showToast]);
+  }, [pagina, busqueda, showToast]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
-  const filtered = useMemo(() => {
-    if (!search) return equipos;
-    const s = search.toLowerCase();
-    return equipos.filter((e) =>
-      [e.serial, e.nombre_marca, e.modelo, e.persona_nombres, e.persona_apellidos].join(' ').toLowerCase().includes(s)
-    );
-  }, [equipos, search]);
+  // Buscador de propietario del formulario: hasta 8 coincidencias.
+  useEffect(() => {
+    if (!busquedaPersona) { setPersonasEncontradas([]); return; }
+    api.get('/personas', { params: { q: busquedaPersona, limit: 8 } })
+      .then((res) => setPersonasEncontradas(res.data))
+      .catch(() => setPersonasEncontradas([]));
+  }, [busquedaPersona]);
 
-  const filteredPersonas = useMemo(() => {
-    if (!personaSearch) return personas.slice(0, 8);
-    const s = personaSearch.toLowerCase();
-    return personas.filter((p) => [p.nombres, p.apellidos, p.numero_documento].join(' ').toLowerCase().includes(s)).slice(0, 8);
-  }, [personas, personaSearch]);
+  const filtered = equipos;
+  const filteredPersonas = personasEncontradas;
+  const totalPaginas = Math.max(1, Math.ceil(totalEquipos / POR_PAGINA));
 
   const openNew = () => {
     setEditingId(null);
@@ -156,7 +173,7 @@ export default function Equipos() {
             className="w-full border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded-xl pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-brand-500"
             placeholder="Buscar por serial o propietario..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPagina(1); }}
           />
         </div>
         <button onClick={openNew} className="ml-auto flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors">
@@ -220,6 +237,30 @@ export default function Equipos() {
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400">
+          <span>
+            {totalEquipos === 0
+              ? 'Sin resultados'
+              : `${(pagina - 1) * POR_PAGINA + 1}–${Math.min(pagina * POR_PAGINA, totalEquipos)} de ${totalEquipos} equipos`}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPagina((n) => Math.max(1, n - 1))}
+              disabled={pagina <= 1}
+              className="px-3 py-1 rounded-lg border border-gray-200 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              Anterior
+            </button>
+            <span>Página {pagina} de {totalPaginas}</span>
+            <button
+              onClick={() => setPagina((n) => Math.min(totalPaginas, n + 1))}
+              disabled={pagina >= totalPaginas}
+              className="px-3 py-1 rounded-lg border border-gray-200 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              Siguiente
+            </button>
+          </div>
         </div>
       </div>
 
