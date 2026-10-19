@@ -210,6 +210,39 @@ cd backend
 npm run backup
 ```
 
+#### Política de copias de seguridad
+
+1. **Dónde:** al menos dos copias fuera del disco del proyecto
+   (`BACKUP_DIR_1` en una unidad externa y `BACKUP_DIR_2` en otra unidad o
+   en una carpeta sincronizada con la nube institucional). Nunca solo en el
+   mismo disco donde corre el sistema.
+2. **Cuándo:** automáticamente todos los días a la hora de `BACKUP_HORA`
+   (02:00 a. m. por defecto), y a mano (`npm run backup`) antes de cualquier
+   actualización del sistema.
+3. **Cuántas:** se conservan las últimas `BACKUP_RETENCION` copias por
+   carpeta (14 días por defecto). Si la institución define otro tiempo de
+   retención de datos (ver `docs/Aviso de Privacidad.md`), se ajusta este
+   valor para que coincida.
+4. **Verificación:** el responsable del sistema revisa **cada semana** que
+   en ambas carpetas aparezca la copia del día (`checkit_backup_*.db`) y,
+   **una vez al mes**, prueba restaurar una copia en un equipo de pruebas
+   (pasos de abajo). Un respaldo que nunca se probó puede no servir cuando
+   se necesite.
+5. **Restaurar una copia:**
+   1. Detener el backend.
+   2. Guardar aparte la base actual (`backend/db/checkit.db`), por si acaso.
+   3. Copiar el respaldo elegido como `backend/db/checkit.db` y borrar, si
+      existen, `checkit.db-wal` y `checkit.db-shm`.
+   4. Iniciar el backend y comprobar en Resumen que aparezcan los
+      movimientos esperados.
+6. **Actualizaciones:** al migrar una base existente a una versión nueva,
+   el sistema guarda automáticamente una copia previa en `backend/db/` (por
+   ejemplo `checkit.antes-de-utc-*.db` al unificar las fechas en UTC).
+   Puede borrarse cuando se compruebe que todo funciona.
+
+Los archivos de respaldo contienen datos personales: las carpetas de destino
+deben tener acceso restringido al personal autorizado.
+
 ## Modelo de datos
 
 El esquema que ejecuta el servidor es `backend/db/schema.sql` y es la única
