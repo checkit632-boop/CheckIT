@@ -328,6 +328,14 @@ jerarquía de creación estricta:
   manual del serial.
 - Historial de movimientos y resumen general (Administrador y Super Administrador).
 
+## Mejoras de rendimiento antes de la implantación (v6.2)
+
+Índices, consultas por rango de fechas, historial de Resumen por período y
+compresión gzip. Con 100.000 movimientos y 20 usuarios simultáneos el
+servidor pasó de 12 a 105 peticiones por segundo. Mediciones, ramas y
+commits en
+[docs/Mejoras de Rendimiento - Preimplantacion.md](docs/Mejoras%20de%20Rendimiento%20-%20Preimplantacion.md).
+
 ## Correcciones de la auditoría de ComVibes (v6.1)
 
 Los 15 hallazgos (H-01 a H-15) y las 2 observaciones (O-01, O-02) quedaron
