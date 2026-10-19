@@ -100,7 +100,7 @@ CREATE TABLE IF NOT EXISTS registros (
   id_equipo           INTEGER NOT NULL,
   id_usuario          INTEGER NOT NULL,
   id_tipo_movimiento  INTEGER NOT NULL,
-  fecha_hora          DATETIME DEFAULT CURRENT_TIMESTAMP,
+  fecha_hora          DATETIME DEFAULT CURRENT_TIMESTAMP, -- siempre UTC; la API la entrega en hora de Colombia
   observaciones       TEXT,
   FOREIGN KEY (id_equipo)          REFERENCES equipos(id_equipo),
   FOREIGN KEY (id_usuario)         REFERENCES usuarios(id_usuario),

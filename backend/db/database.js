@@ -71,6 +71,40 @@ function migrate() {
   } catch (err) {
     console.warn('No se pudo actualizar el correo semilla del Super Administrador:', err.message);
   }
+
+  migrarFechasAUtc();
+}
+
+// Auditoría 3.2: unificar registros.fecha_hora en UTC. Se ejecuta una sola
+// vez por base (PRAGMA user_version pasa de 0 a 1).
+// Qué filas se convierten, según cómo las guardó cada versión:
+// - v2 a v4 no enviaban fecha_hora (quedaba CURRENT_TIMESTAMP = UTC);
+// - v5 y v6 guardaban los movimientos manuales en hora de Bogotá; v5 entró
+//   al repositorio el 2026-08-31 (commit c68911a);
+// - los cierres automáticos del usuario 'sistema' siempre fueron UTC.
+// Por eso solo se pasan a UTC (+5 horas, Bogotá no tiene horario de verano)
+// los movimientos manuales con fecha desde el corte de v5.
+const CORTE_HORA_LOCAL_V5 = '2026-08-31';
+
+function migrarFechasAUtc() {
+  if (db.pragma('user_version', { simple: true }) >= 1) return;
+
+  const condicion = `fecha_hora >= ? AND id_usuario NOT IN (SELECT id_usuario FROM usuarios WHERE usuario = 'sistema')`;
+  const pendientes = db.prepare(`SELECT COUNT(*) AS c FROM registros WHERE ${condicion}`).get(CORTE_HORA_LOCAL_V5).c;
+
+  if (pendientes > 0) {
+    // Copia completa antes de tocar datos (queda en db/, ignorada por Git).
+    const respaldo = path.join(__dirname, `checkit.antes-de-utc-${Date.now()}.db`);
+    db.exec(`VACUUM INTO '${respaldo.replace(/'/g, "''")}'`);
+    console.log(`💾 Copia de seguridad previa a la migración de fechas: ${respaldo}`);
+  }
+
+  db.transaction(() => {
+    db.prepare(`UPDATE registros SET fecha_hora = datetime(fecha_hora, '+5 hours') WHERE ${condicion}`).run(CORTE_HORA_LOCAL_V5);
+    db.pragma('user_version = 1');
+  })();
+
+  if (pendientes > 0) console.log(`✔ ${pendientes} movimiento(s) pasados de hora de Bogotá a UTC.`);
 }
 
 migrate();
