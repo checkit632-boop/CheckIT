@@ -24,36 +24,32 @@ function ejecutarReinicioOperativo() {
   const idSistema = db.prepare("SELECT id_usuario FROM usuarios WHERE usuario = 'sistema'").get()?.id_usuario;
   const idSalida = db.prepare("SELECT id_tipo_movimiento FROM tipos_movimiento WHERE nombre_movimiento = 'Salida'").get()?.id_tipo_movimiento;
 
-  let cerrados = 0;
-
-  if (idSistema && idSalida) {
-    const equipos = db.prepare('SELECT id_equipo FROM equipos').all();
-    const ultimoMovimiento = db.prepare(`
-      SELECT tm.nombre_movimiento
-      FROM registros r
-      JOIN tipos_movimiento tm ON tm.id_tipo_movimiento = r.id_tipo_movimiento
-      WHERE r.id_equipo = ?
-      ORDER BY r.fecha_hora DESC, r.id_registro DESC
-      LIMIT 1
-    `);
-    const insertarSalida = db.prepare(`
-      INSERT INTO registros (id_equipo, id_usuario, id_tipo_movimiento)
-      VALUES (?, ?, ?)
-    `);
-
-    for (const { id_equipo } of equipos) {
-      const ultimo = ultimoMovimiento.get(id_equipo);
-      if (ultimo && ultimo.nombre_movimiento === 'Entrada') {
-        insertarSalida.run(id_equipo, idSistema, idSalida);
-        cerrados++;
-      }
+  // Una sola transacción para todo el cierre: antes era una consulta y una
+  // escritura a disco por cada equipo, y si el proceso fallaba a la mitad
+  // quedaban unos equipos cerrados y otros no, sin su registro de auditoría.
+  // Ahora se cierran todos (con su auditoría) o ninguno. "Adentro" se decide
+  // igual que en el resto del sistema: el último movimiento por id_registro
+  // es una entrada (idx_registros_equipo).
+  const cerrar = db.transaction(() => {
+    let cerrados = 0;
+    if (idSistema && idSalida) {
+      cerrados = db.prepare(`
+        INSERT INTO registros (id_equipo, id_usuario, id_tipo_movimiento)
+        SELECT e.id_equipo, ?, ?
+        FROM equipos e
+        JOIN registros r ON r.id_registro = (SELECT MAX(id_registro) FROM registros WHERE id_equipo = e.id_equipo)
+        JOIN tipos_movimiento tm ON tm.id_tipo_movimiento = r.id_tipo_movimiento
+        WHERE tm.nombre_movimiento = 'Entrada'
+      `).run(idSistema, idSalida).changes;
     }
-  }
 
-  db.prepare(`INSERT INTO auditoria (id_usuario, accion, tabla_afectada, descripcion) VALUES (NULL, 'SISTEMA', 'registros', ?)`)
-    .run(`Reinicio operativo diario — se registraron ${cerrados} salida(s) automática(s) (equipos que seguían "Adentro"). No se eliminó ningún dato.`);
+    db.prepare(`INSERT INTO auditoria (id_usuario, accion, tabla_afectada, descripcion) VALUES (NULL, 'SISTEMA', 'registros', ?)`)
+      .run(`Reinicio operativo diario — se registraron ${cerrados} salida(s) automática(s) (equipos que seguían "Adentro"). No se eliminó ningún dato.`);
+    return cerrados;
+  });
 
-  return cerrados;
+  return cerrar();
 }
+
 
 module.exports = { ejecutarReinicioOperativo };
