@@ -34,7 +34,15 @@ const app = express();
 app.set('trust proxy', process.env.TRUST_PROXY || 'loopback');
 const PORT = process.env.PORT || 4000;
 
-app.use(cors());
+// CORS: solo los orígenes de la lista pueden leer las respuestas de la API
+// desde otra página. Antes estaba abierto a cualquier sitio. El frontend
+// servido por Vite (o por el mismo backend en producción) es del mismo origen
+// y no se ve afectado. Configurable con CORS_ORIGINS en backend/.env.
+const ORIGENES_PERMITIDOS = (process.env.CORS_ORIGINS || 'https://localhost:5173,http://localhost:5173')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+app.use(cors({ origin: ORIGENES_PERMITIDOS }));
 // Comprime (gzip) las respuestas: los listados JSON repiten mucho los mismos
 // nombres de campo y se reducen varias veces, sobre todo el historial de
 // Resumen y las exportaciones.
