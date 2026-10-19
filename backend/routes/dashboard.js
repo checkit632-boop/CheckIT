@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db/database');
 const { authRequired, requireRole, ROL_SUPER } = require('../middleware/auth');
+const { rangoUtc } = require('../utils/periodos');
 
 const router = express.Router();
 
@@ -11,17 +12,10 @@ router.use(authRequired, requireRole(ROL_SUPER));
 
 // Traduce ?periodo=dia|semana|mes a una condición SQL sobre fecha_hora/fecha.
 // "dia" = hoy calendario, "semana" = semana calendaria actual, "mes" = mes
-// calendario actual. Todo en hora local del servidor.
+// calendario actual. Todo en hora local del servidor. Se arma como rango
+// (utils/periodos.js) para que SQLite use los índices de fecha.
 function condicionPeriodo(columna, periodo) {
-  switch (periodo) {
-    case 'semana':
-      return `strftime('%Y-%W', ${columna}, 'localtime') = strftime('%Y-%W','now','localtime')`;
-    case 'mes':
-      return `strftime('%Y-%m', ${columna}, 'localtime') = strftime('%Y-%m','now','localtime')`;
-    case 'dia':
-    default:
-      return `date(${columna}, 'localtime') = date('now','localtime')`;
-  }
+  return rangoUtc(columna, ['dia', 'semana', 'mes'].includes(periodo) ? periodo : 'dia');
 }
 
 // GET /api/dashboard/resumen?periodo=dia|semana|mes
