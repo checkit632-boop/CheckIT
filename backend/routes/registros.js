@@ -25,6 +25,42 @@ const SELECT_BASE = `
 
 const LIMIT_POR_DEFECTO = 100;
 const LIMIT_MAXIMO = 500;
+const FECHA_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+// Acepta solo fechas reales en formato AAAA-MM-DD (rechaza 2026-02-30).
+function esFechaValida(valor) {
+  if (typeof valor !== 'string' || !FECHA_REGEX.test(valor)) return false;
+  const d = new Date(`${valor}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === valor;
+}
+
+// Movimientos entre desde y hasta (ambos incluidos, en hora local), más la
+// entrada previa de cada equipo cuyo ciclo empezó antes del período: así la
+// vista Resumen puede armar el ciclo entrada -> salida completo en vez de
+// mostrar una "salida aislada" solo porque su entrada quedó fuera del rango.
+// La "entrada previa" es el movimiento inmediatamente anterior (por
+// id_registro, el mismo orden con que Resumen arma los ciclos) al primer
+// movimiento del equipo dentro del período; se resuelve con
+// idx_registros_equipo.
+const CONDICION_PERIODO = `(
+  (r.fecha_hora >= ? AND r.fecha_hora < date(?, '+1 day'))
+  OR r.id_registro IN (
+    SELECT r3.id_registro
+    FROM (
+      SELECT (SELECT MAX(r2.id_registro) FROM registros r2
+               WHERE r2.id_equipo = pr.id_equipo AND r2.id_registro < pr.primero) AS id_registro
+      FROM (
+        SELECT id_equipo, MIN(id_registro) AS primero
+        FROM registros
+        WHERE fecha_hora >= ? AND fecha_hora < date(?, '+1 day')
+        GROUP BY id_equipo
+      ) pr
+    ) previo
+    JOIN registros r3 ON r3.id_registro = previo.id_registro
+    JOIN tipos_movimiento tm3 ON tm3.id_tipo_movimiento = r3.id_tipo_movimiento
+    WHERE LOWER(tm3.nombre_movimiento) = 'entrada'
+  )
+)`;
 
 // GET /api/registros — Orden estricto por ID descendente
 // Parámetros opcionales:
@@ -32,10 +68,20 @@ const LIMIT_MAXIMO = 500;
 //   ?hoy=1         -> solo movimientos del día actual (se "vacía" a las 00:00)
 //   ?propios=1     -> solo los movimientos registrados por el usuario autenticado
 //                     (el Super Administrador siempre ve los de todos, sin importar este flag)
+//   ?desde=AAAA-MM-DD&hasta=AAAA-MM-DD -> solo ese período (lo usa Resumen,
+//                     para no descargar todo el historial en cada visita)
 router.get('/', asyncHandler((req, res) => {
-  const { limit, hoy, propios } = req.query;
+  const { limit, hoy, propios, desde, hasta } = req.query;
   const condiciones = [];
   const params = [];
+
+  if (desde !== undefined || hasta !== undefined) {
+    if (!esFechaValida(desde) || !esFechaValida(hasta) || desde > hasta) {
+      return res.status(400).json({ error: 'El período debe tener desde y hasta en formato AAAA-MM-DD, con desde <= hasta.' });
+    }
+    condiciones.push(CONDICION_PERIODO);
+    params.push(desde, hasta, desde, hasta);
+  }
 
   if (hoy) {
     condiciones.push(rangoLocal('r.fecha_hora'));
@@ -52,7 +98,7 @@ router.get('/', asyncHandler((req, res) => {
   // parámetro preparado (?) igual que el resto de valores. Un valor no
   // numérico o no positivo (?limit=abc, ?limit=-5) usa el tope por defecto
   // en vez de producir "LIMIT NaN" (500), y uno desmedido se acota al máximo.
-  // Sin ?limit se devuelve el historial completo: lo usa la vista Resumen.
+  // Sin ?limit (ni período) se devuelve el historial completo.
   if (limit !== undefined) {
     const pedido = Number.parseInt(limit, 10);
     const tope = Number.isInteger(pedido) && pedido > 0 ? Math.min(pedido, LIMIT_MAXIMO) : LIMIT_POR_DEFECTO;
