@@ -4,7 +4,7 @@
 // manejar el estado del módulo y la comunicación con la API; la UI de cada
 // bloque vive en sus propios componentes (components/entradas-salidas/*) y
 // las utilidades genéricas (fecha, clima) en utils/.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ScanLine, LoaderCircle, Laptop, Activity } from 'lucide-react';
 import api from '../api/client';
 import { useToast } from '../context/ToastContext';
@@ -12,6 +12,7 @@ import { useAuth } from '../context/AuthContext';
 import QRScannerModal from '../components/QRScannerModal';
 import { playEntrada, playSalida, playError } from '../utils/sounds';
 import { useClima } from '../utils/clima';
+import useLectorCodigos from '../hooks/useLectorCodigos';
 import ValidarAccesoCard from '../components/entradas-salidas/ValidarAccesoCard';
 import MovimientosRecientesPanel from '../components/entradas-salidas/MovimientosRecientesPanel';
 import EstadoSistemaFooter from '../components/entradas-salidas/EstadoSistemaFooter';
@@ -107,34 +108,21 @@ export default function ControlAccesos() {
     return () => clearInterval(interval);
   }, []);
 
-  const determinarSiguienteMovimiento = (idEquipo, serial, estadoBackend) => {
-    const registroReciente = recientes.find(
-      (m) => m.serial?.toLowerCase() === serial?.toLowerCase() || m.id_equipo === idEquipo
-    );
-
-    if (registroReciente) {
-      const ultimoTipo = (registroReciente.nombre_movimiento || '').toLowerCase();
-      return {
-        ...estadoBackend,
-        siguiente_movimiento: ultimoTipo === 'entrada' ? 'Salida' : 'Entrada'
-      };
-    }
-
-    return estadoBackend;
-  };
-
-  const cargarEstado = async (idEquipo, serial) => {
+  // El estado que muestra la tarjeta es siempre el del backend: es el mismo
+  // con el que POST /registros/escanear decide si registra entrada o salida.
+  const cargarEstado = async (idEquipo) => {
     try {
       const { data } = await api.get(`/registros/estado/${idEquipo}`);
-      const estadoCorregido = determinarSiguienteMovimiento(idEquipo, serial, data);
-      setEstadoInfo(estadoCorregido);
-      return estadoCorregido;
+      setEstadoInfo(data);
+      return data;
     } catch (err) {
       setEstadoInfo(null);
       return null;
     }
   };
 
+  // Búsqueda manual (escribir el serial y pulsar Enter o la lupa): solo
+  // consulta y muestra el equipo; el registro se confirma con "Registrar".
   const buscarEquipo = async (serial) => {
     if (!serial.trim()) return;
     setSearching(true);
@@ -142,7 +130,7 @@ export default function ControlAccesos() {
       const { data } = await api.get(`/equipos/serial/${encodeURIComponent(serial.trim())}`);
       setEquipo(data);
 
-      const estadoFinal = await cargarEstado(data.id_equipo, data.serial);
+      const estadoFinal = await cargarEstado(data.id_equipo);
       showToast(`Equipo encontrado — Siguiente: ${estadoFinal?.siguiente_movimiento || 'Entrada'}`);
       return data;
     } catch (err) {
@@ -155,92 +143,67 @@ export default function ControlAccesos() {
     }
   };
 
-  const handleScanResult = async (serial) => {
+  // El aviso "Registrando movimiento..." solo aparece si el servidor tarda:
+  // en una red normal la respuesta llega en milisegundos y mostrarlo solo
+  // haría parpadear la pantalla y frenar la fila.
+  const temporizadorEspera = useRef(null);
+  const empezarEspera = () => {
+    temporizadorEspera.current = setTimeout(() => setRegistrando(true), 400);
+  };
+  const terminarEspera = () => {
+    clearTimeout(temporizadorEspera.current);
+    setRegistrando(false);
+  };
+
+  // Registra un movimiento con un solo viaje al servidor (POST
+  // /registros/escanear), que decide entrada o salida y devuelve el equipo,
+  // su estado, los contadores y los movimientos recientes ya actualizados.
+  // origen: 'camara' | 'lector' (pistola USB/Bluetooth) | 'manual'.
+  const escanear = async (codigo, origen) => {
+    if (!codigo?.trim()) return;
     setScannerOpen(false);
-    setSerialQuery(serial);
-
-    if (!serial.trim()) return;
-
-    setSearching(true);
-    setRegistrando(true);
-    const inicio = Date.now();
-
+    setSerialQuery('');
+    empezarEspera();
     try {
-      const { data: equipoData } = await api.get(`/equipos/serial/${encodeURIComponent(serial.trim())}`);
-      const { data: estadoData } = await api.get(`/registros/estado/${equipoData.id_equipo}`);
+      const { data } = await api.post('/registros/escanear', { codigo: codigo.trim() });
+      setEquipo(data.equipo);
+      setEstadoInfo(data.estado);
+      setRecientes(data.recientes);
+      setStats({ equipos: data.stats.misMovimientosHoy || 0, equiposDentro: data.stats.equiposDentro || 0 });
+      setLastUpdate(new Date());
 
-      setEquipo(equipoData);
-      setEstadoInfo(estadoData);
+      if (data.movimiento === 'Entrada') playEntrada();
+      else playSalida();
+      showToast(`${data.movimiento} registrada — ${data.equipo.serial} — ${new Date().toLocaleTimeString('es-CO')}`);
 
-      await api.post('/registros', {
-        serial: equipoData.serial,
-        tipo: estadoData.siguiente_movimiento,
-      });
-
-      if (estadoData.siguiente_movimiento === 'Entrada') {
-        playEntrada();
-      } else {
-        playSalida();
-      }
-
-      showToast(`Movimiento de ${estadoData.siguiente_movimiento.toLowerCase()} registrado con éxito — ${new Date().toLocaleTimeString('es-CO')}`);
-      await loadRecientes();
-      await loadDashboardStats();
-
-      const { data: nuevoEstado } = await api.get(`/registros/estado/${equipoData.id_equipo}`);
-      setEstadoInfo(nuevoEstado);
-
-      setTimeout(() => {
-        setEquipo(null);
-        setEstadoInfo(null);
-        setSerialQuery('');
-        setScannerOpen(true);
-      }, 2000);
-
+      // Con la cámara se vuelve a abrir enseguida para el siguiente equipo;
+      // el resultado queda visible en la tarjeta hasta el próximo escaneo.
+      if (origen === 'camara') setTimeout(() => setScannerOpen(true), 600);
     } catch (err) {
-      playError();
-      showToast(err.response?.data?.error || 'No se pudo registrar el movimiento', 'error');
-    } finally {
-      const tiempo = Date.now() - inicio;
-      if (tiempo < 800) {
-        await new Promise(resolve => setTimeout(resolve, 800 - tiempo));
+      const respuesta = err.response?.data;
+      if (respuesta?.duplicado) {
+        // Lectura repetida del mismo código: no es un error del operador.
+        setEquipo(respuesta.equipo);
+        setEstadoInfo(respuesta.estado);
+        showToast(respuesta.error);
+      } else {
+        playError();
+        if (respuesta?.equipo) setEquipo(respuesta.equipo);
+        showToast(respuesta?.error || 'No se pudo registrar el movimiento', 'error');
       }
-      setSearching(false);
-      setRegistrando(false);
+    } finally {
+      terminarEspera();
     }
   };
 
-  const registrar = async () => {
+  // Lecturas de la pistola en cualquier parte de la pantalla (no mientras la
+  // ventana de la cámara está abierta, que tiene su propio campo manual).
+  useLectorCodigos((codigo) => escanear(codigo, 'lector'), { activo: !scannerOpen });
+
+  const registrar = () => {
     if (!equipo || !estadoInfo) { showToast('Realiza una búsqueda primero', 'error'); return; }
     if (!equipo.activo) { showToast('Este equipo está inactivo y no puede registrar movimientos', 'error'); return; }
-    const tipo = estadoInfo.siguiente_movimiento;
-    setRegistrando(true);
-    const inicio = Date.now();
-    try {
-      await api.post('/registros', { serial: equipo.serial, tipo });
-
-      if (tipo === 'Entrada') {
-        playEntrada();
-      } else {
-        playSalida();
-      }
-
-      showToast(`Movimiento de ${tipo.toLowerCase()} registrado con éxito — ${new Date().toLocaleTimeString('es-CO')}`);
-      setEquipo(null);
-      setEstadoInfo(null);
-      setSerialQuery('');
-      loadRecientes();
-      loadDashboardStats();
-    } catch (err) {
-      playError();
-      showToast(err.response?.data?.error || 'No se pudo registrar el movimiento', 'error');
-    } finally {
-      const tiempo = Date.now() - inicio;
-      if (tiempo < 800) {
-        await new Promise(resolve => setTimeout(resolve, 800 - tiempo));
-      }
-      setRegistrando(false);
-    }
+    escanear(equipo.serial, 'manual');
   };
 
   const esEntrada = estadoInfo?.siguiente_movimiento === 'Entrada';
@@ -347,7 +310,7 @@ export default function ControlAccesos() {
       {/* 4. FOOTER ESTADO DEL SISTEMA */}
       <EstadoSistemaFooter lastUpdate={lastUpdate} />
 
-      <QRScannerModal open={scannerOpen} onClose={() => setScannerOpen(false)} onResult={handleScanResult} />
+      <QRScannerModal open={scannerOpen} onClose={() => setScannerOpen(false)} onResult={(codigo) => escanear(codigo, 'camara')} />
 
       {registrando && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center">

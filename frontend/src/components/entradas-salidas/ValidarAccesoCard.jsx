@@ -29,7 +29,7 @@ export default function ValidarAccesoCard({
           <div className="flex gap-2">
             <input
               className="flex-1 border border-gray-300 dark:border-gray-600 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-brand-500 bg-surface dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500 shadow-sm"
-              placeholder="Escribe el serial o escanea el QR..."
+              placeholder="Escribe el serial, o dispara la pistola lectora en cualquier momento..."
               value={serialQuery}
               onChange={(e) => setSerialQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && buscarEquipo(serialQuery)}

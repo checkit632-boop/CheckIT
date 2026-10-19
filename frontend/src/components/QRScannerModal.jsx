@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
-import { CheckCircle2, ScanLine } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ScanLine } from 'lucide-react';
 import Modal from './Modal';
 
 export default function QRScannerModal({ open, onClose, onResult }) {
@@ -103,8 +103,14 @@ export default function QRScannerModal({ open, onClose, onResult }) {
     () => {}
   )
   .catch((error) => {
-    alert("Error al iniciar la cámara:\n\n" + error);
-    console.error(error);
+    // Antes era un alert(), que congela la página hasta que alguien pulse
+    // "Aceptar". Ahora el aviso queda dentro de la ventana y se muestra el
+    // ingreso manual del serial para no detener la fila.
+    console.error('No se pudo iniciar la cámara:', error);
+    setStatus({
+      type: 'error',
+      msg: 'No se pudo iniciar la cámara (revisa el permiso o si otra aplicación la está usando). Ingresa el serial manualmente.'
+    });
     setCameraError(true);
   });
 
@@ -187,11 +193,15 @@ export default function QRScannerModal({ open, onClose, onResult }) {
         className={`flex items-center gap-2 text-sm rounded-xl px-3 py-2.5 mb-4 ${
           status.type === 'success'
             ? 'bg-brand-50 dark:bg-brand-900/30 text-brand-800 dark:text-brand-300 border border-brand-300 dark:border-brand-700'
-            : 'bg-brand-50 dark:bg-brand-900/30 text-brand-800 dark:text-brand-300 border border-brand-200 dark:border-brand-800'
+            : status.type === 'error'
+              ? 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800'
+              : 'bg-brand-50 dark:bg-brand-900/30 text-brand-800 dark:text-brand-300 border border-brand-200 dark:border-brand-800'
         }`}
       >
         {status.type === 'success' ? (
           <CheckCircle2 size={16} />
+        ) : status.type === 'error' ? (
+          <AlertCircle size={16} />
         ) : (
           <ScanLine size={16} className="animate-pulse" />
         )}
