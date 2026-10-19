@@ -107,6 +107,17 @@ CREATE TABLE IF NOT EXISTS registros (
   FOREIGN KEY (id_tipo_movimiento) REFERENCES tipos_movimiento(id_tipo_movimiento)
 );
 
+-- Índices de registros (mejora de rendimiento antes de la implantación).
+-- Sin ellos, cada consulta recorre la tabla completa: con 100.000
+-- movimientos el estado de un equipo tardaba 35 ms y el servidor atendía
+-- ~9 peticiones/s con 20 usuarios.
+--   equipo + id   -> "último movimiento de un equipo" (estado, stats/hoy)
+--   fecha_hora    -> filtros por día/semana/mes e historial por período
+--   usuario+fecha -> "mis movimientos de hoy" y usuarios más activos
+CREATE INDEX IF NOT EXISTS idx_registros_equipo  ON registros(id_equipo, id_registro);
+CREATE INDEX IF NOT EXISTS idx_registros_fecha   ON registros(fecha_hora);
+CREATE INDEX IF NOT EXISTS idx_registros_usuario ON registros(id_usuario, fecha_hora);
+
 -- TABLA AUDITORÍA
 CREATE TABLE IF NOT EXISTS auditoria (
   id_auditoria     INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -117,6 +128,9 @@ CREATE TABLE IF NOT EXISTS auditoria (
   descripcion      TEXT,
   FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario)
 );
+
+-- Conteo y listado de inicios de sesión por período (Dashboard).
+CREATE INDEX IF NOT EXISTS idx_auditoria_accion_fecha ON auditoria(accion, fecha);
 
 -- TABLA INTENTOS DE INICIO DE SESIÓN (bloqueo de 5 intentos / 3 minutos)
 CREATE TABLE IF NOT EXISTS login_intentos (

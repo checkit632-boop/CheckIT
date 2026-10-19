@@ -98,6 +98,9 @@ Control de accesos: cada entrada o salida de un equipo.
 | fecha_hora | DATETIME | por defecto ahora | Fecha y hora (zona America/Bogota) |
 | observaciones | TEXT | | Histórico; desde v6 se usa `equipos.observaciones` |
 
+Índices: `idx_registros_equipo (id_equipo, id_registro)`,
+`idx_registros_fecha (fecha_hora)` e `idx_registros_usuario (id_usuario, fecha_hora)`.
+
 ## auditoria
 | Campo | Tipo | Restricciones | Descripción |
 |---|---|---|---|
@@ -107,6 +110,8 @@ Control de accesos: cada entrada o salida de un equipo.
 | tabla_afectada | TEXT | | Tabla sobre la que se actuó |
 | fecha | DATETIME | por defecto ahora | Momento de la acción |
 | descripcion | TEXT | | Detalle legible |
+
+Índice: `idx_auditoria_accion_fecha (accion, fecha)`.
 
 ## login_intentos
 Bloqueo por intentos fallidos de inicio de sesión: 5 intentos bloquean la
