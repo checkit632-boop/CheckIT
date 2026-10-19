@@ -74,7 +74,13 @@ function guardarCodigo(id_usuario, tipo, codigo) {
   `).run(id_usuario, hash, tipo, expira);
 }
 
-function validarCodigo(id_usuario, tipo, codigo) {
+// Lee el código pendiente, cuenta el intento y lo marca como usado en una
+// sola transacción IMMEDIATE (toma el bloqueo de escritura desde el inicio).
+// Con un solo proceso de Node no hay carrera posible, porque better-sqlite3
+// es síncrono; la transacción lo mantiene correcto también si el backend
+// llegara a correr en varios procesos, y el contador se incrementa en SQL
+// (intentos = intentos + 1) en vez de a partir de un valor leído antes.
+const validarCodigoEnTransaccion = db.transaction((id_usuario, tipo, codigo) => {
   const row = db.prepare(`
     SELECT * FROM codigos_verificacion
     WHERE id_usuario = ? AND tipo = ? AND usado = 0
@@ -87,18 +93,23 @@ function validarCodigo(id_usuario, tipo, codigo) {
     // O-02: el bloqueo de login_intentos no cubre este paso, así que cada
     // código cuenta sus propios fallos. Al llegar al máximo se invalida
     // aunque no haya vencido, y hay que pedir uno nuevo (que llega al correo).
-    const intentos = row.intentos + 1;
+    const { intentos } = db.prepare(`
+      UPDATE codigos_verificacion SET intentos = intentos + 1 WHERE id_codigo = ? RETURNING intentos
+    `).get(row.id_codigo);
     if (intentos >= MAX_INTENTOS_CODIGO) {
-      db.prepare('UPDATE codigos_verificacion SET intentos = ?, usado = 1 WHERE id_codigo = ?').run(intentos, row.id_codigo);
+      db.prepare('UPDATE codigos_verificacion SET usado = 1 WHERE id_codigo = ?').run(row.id_codigo);
       return { ok: false, status: 429, error: 'Demasiados intentos. Solicita un nuevo código.' };
     }
-    db.prepare('UPDATE codigos_verificacion SET intentos = ? WHERE id_codigo = ?').run(intentos, row.id_codigo);
     const restantes = MAX_INTENTOS_CODIGO - intentos;
     return { ok: false, error: `Código incorrecto. Te queda${restantes === 1 ? '' : 'n'} ${restantes} intento${restantes === 1 ? '' : 's'}.` };
   }
 
   db.prepare('UPDATE codigos_verificacion SET usado = 1 WHERE id_codigo = ?').run(row.id_codigo);
   return { ok: true };
+});
+
+function validarCodigo(id_usuario, tipo, codigo) {
+  return validarCodigoEnTransaccion.immediate(id_usuario, tipo, codigo);
 }
 
 // ── Bloqueo por intentos fallidos ──────────────────────────────
