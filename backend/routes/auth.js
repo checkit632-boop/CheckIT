@@ -12,6 +12,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { validarPassword, MENSAJE_PASSWORD } = require('../utils/validarPassword');
 const { JWT_SECRET, authRequired } = require('../middleware/auth');
 const { enviarCodigo } = require('../utils/mailer');
+const { limiteLogin, limiteCodigo, limiteReenvio, limiteRecuperacion, limiteRestablecer } = require('../middleware/limitesAuth');
 
 const router = express.Router();
 
@@ -139,7 +140,7 @@ function limpiarIntentos(usuario) {
 // POST /api/auth/login — primer y segundo factor (usuario + contraseña).
 // Si el usuario tiene correo registrado, se envía un tercer factor
 // (código de 6 dígitos) antes de emitir el token de sesión.
-router.post('/login', asyncHandler((req, res) => {
+router.post('/login', limiteLogin, asyncHandler((req, res) => {
   const { usuario, password } = req.body;
   if (!usuario || !password) return res.status(400).json({ error: 'Usuario y contraseña son obligatorios' });
 
@@ -215,7 +216,7 @@ router.post('/login', asyncHandler((req, res) => {
 }));
 
 // POST /api/auth/login/codigo — valida el tercer factor y emite el token.
-router.post('/login/codigo', asyncHandler((req, res) => {
+router.post('/login/codigo', limiteCodigo, asyncHandler((req, res) => {
   const { id_usuario, codigo } = req.body;
   if (!id_usuario || !codigo) return res.status(400).json({ error: 'Código requerido' });
 
@@ -237,7 +238,7 @@ router.post('/login/codigo', asyncHandler((req, res) => {
 }));
 
 // POST /api/auth/login/reenviar — reenvía el código del tercer factor.
-router.post('/login/reenviar', asyncHandler((req, res) => {
+router.post('/login/reenviar', limiteReenvio, asyncHandler((req, res) => {
   const { id_usuario } = req.body;
   const user = db.prepare('SELECT * FROM usuarios WHERE id_usuario = ?').get(id_usuario);
   if (!user || !user.correo) return res.status(404).json({ error: 'No se puede reenviar el código' });
@@ -257,7 +258,7 @@ router.post('/login/reenviar', asyncHandler((req, res) => {
 }));
 
 // POST /api/auth/forgot-password — solicita el código de recuperación.
-router.post('/forgot-password', asyncHandler((req, res) => {
+router.post('/forgot-password', limiteRecuperacion, asyncHandler((req, res) => {
   const { identificador } = req.body; // usuario o correo
   if (!identificador) return res.status(400).json({ error: 'Ingresa tu usuario o correo' });
 
@@ -283,7 +284,7 @@ router.post('/forgot-password', asyncHandler((req, res) => {
 }));
 
 // POST /api/auth/reset-password — valida el código y define la nueva contraseña.
-router.post('/reset-password', asyncHandler((req, res) => {
+router.post('/reset-password', limiteRestablecer, asyncHandler((req, res) => {
   const { identificador, codigo, password } = req.body;
   if (!identificador || !codigo || !password) return res.status(400).json({ error: 'Todos los campos son obligatorios' });
   if (!validarPassword(password)) return res.status(400).json({ error: MENSAJE_PASSWORD });
