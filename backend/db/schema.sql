@@ -86,6 +86,11 @@ CREATE TABLE IF NOT EXISTS equipos (
   FOREIGN KEY (id_estado)  REFERENCES estados(id_estado)
 );
 
+-- Equipos de una persona (ficha del propietario, validación antes de
+-- eliminarla). Auditoría, punto 3.1. El serial no necesita índice propio:
+-- su restricción UNIQUE ya crea uno.
+CREATE INDEX IF NOT EXISTS idx_equipos_persona ON equipos(id_persona);
+
 -- TABLA TIPOS DE MOVIMIENTO
 CREATE TABLE IF NOT EXISTS tipos_movimiento (
   id_tipo_movimiento  INTEGER PRIMARY KEY AUTOINCREMENT,

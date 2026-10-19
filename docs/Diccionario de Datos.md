@@ -82,6 +82,8 @@ Condición física del equipo.
 | activo | INTEGER | NN, por defecto 1 | 1 = activo, 0 = dado de baja (conserva historial) |
 | fecha_registro | DATETIME | por defecto ahora | Fecha de registro |
 
+Índice: `idx_equipos_persona (id_persona)`. El serial ya tiene el índice de su restricción `UNIQUE`.
+
 ## tipos_movimiento
 | Campo | Tipo | Restricciones | Descripción |
 |---|---|---|---|
