@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const compression = require('compression');
 
 const authRoutes = require('./routes/auth');
 const usuariosRoutes = require('./routes/usuarios');
@@ -29,6 +30,10 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 app.use(cors());
+// Comprime (gzip) las respuestas: los listados JSON repiten mucho los mismos
+// nombres de campo y se reducen varias veces, sobre todo el historial de
+// Resumen y las exportaciones.
+app.use(compression());
 app.use(express.json());
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', service: 'CheckIT API' }));
