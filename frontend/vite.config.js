@@ -17,6 +17,10 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:4000',
         changeOrigin: true,
+        // Envía X-Forwarded-For con la IP real del navegador, para que los
+        // límites de peticiones del backend no traten a todos los equipos
+        // como si fueran uno solo (el proxy).
+        xfwd: true,
       },
     },
   },

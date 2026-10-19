@@ -27,6 +27,11 @@ process.on('unhandledRejection', (err) => {
 });
 
 const app = express();
+// La IP real del cliente (para los límites de peticiones) se toma de
+// X-Forwarded-For solo si la petición llega desde un proxy de confianza: por
+// defecto, uno en la misma máquina (proxy de Vite en desarrollo, IIS/nginx
+// en producción). Configurable con TRUST_PROXY en backend/.env.
+app.set('trust proxy', process.env.TRUST_PROXY || 'loopback');
 const PORT = process.env.PORT || 4000;
 
 app.use(cors());
