@@ -3,6 +3,8 @@
 Fuente de verdad: `backend/db/schema.sql` (copiado tal cual en
 `database/Script_checkIt.sql`; se verifica con `npm run sql:check`).
 Motor: SQLite. Tipos: `INTEGER`, `TEXT`, `DATETIME` (texto ISO).
+Todas las columnas `DATETIME` se guardan en UTC y se convierten a la hora de
+Colombia solo al mostrarlas (`backend/utils/periodos.js`).
 PK = llave primaria · FK = llave foránea · UQ = único · NN = obligatorio.
 
 ## roles
@@ -95,7 +97,7 @@ Control de accesos: cada entrada o salida de un equipo.
 | id_equipo | INTEGER | NN, FK → equipos | Equipo |
 | id_usuario | INTEGER | NN, FK → usuarios | Quién registró el movimiento |
 | id_tipo_movimiento | INTEGER | NN, FK → tipos_movimiento | Entrada o salida |
-| fecha_hora | DATETIME | por defecto ahora | Fecha y hora (zona America/Bogota) |
+| fecha_hora | DATETIME | por defecto ahora | Fecha y hora en **UTC**; la API la entrega en hora de Colombia (UTC-5). Las bases anteriores se migran una vez al arrancar (`PRAGMA user_version = 1`) |
 | observaciones | TEXT | | Histórico; desde v6 se usa `equipos.observaciones` |
 
 Índices: `idx_registros_equipo (id_equipo, id_registro)`,

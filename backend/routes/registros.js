@@ -1,7 +1,7 @@
 const express = require('express');
 const db = require('../db/database');
 const asyncHandler = require('../utils/asyncHandler');
-const { rangoLocal } = require('../utils/periodos');
+const { aHoraLocal, rangoUtc, rangoEntreFechasLocales } = require('../utils/periodos');
 const { authRequired, requireRole, ROL_ADMIN, ROL_SUPER } = require('../middleware/auth');
 
 const router = express.Router();
@@ -10,8 +10,11 @@ router.use(authRequired);
 // e.observaciones (v6) es la observación vigente del equipo — se registra una
 // sola vez al crear/editar el equipo y se muestra tal cual en cada movimiento
 // de su historial, en lugar de pedirse de nuevo en cada entrada/salida.
+// fecha_hora se guarda en UTC y aquí se entrega en hora de Colombia.
 const SELECT_BASE = `
-  SELECT r.*, tm.nombre_movimiento,
+  SELECT r.id_registro, r.id_equipo, r.id_usuario, r.id_tipo_movimiento, r.observaciones,
+         ${aHoraLocal('r.fecha_hora')} AS fecha_hora,
+         tm.nombre_movimiento,
          e.serial, e.modelo, e.observaciones AS observaciones_equipo, m.nombre_marca,
          p.nombres AS persona_nombres, p.apellidos AS persona_apellidos, p.numero_documento,
          u.usuario AS registrado_por
@@ -34,7 +37,7 @@ function esFechaValida(valor) {
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === valor;
 }
 
-// Movimientos entre desde y hasta (ambos incluidos, en hora local), más la
+// Movimientos entre desde y hasta (fechas locales, ambas incluidas), más la
 // entrada previa de cada equipo cuyo ciclo empezó antes del período: así la
 // vista Resumen puede armar el ciclo entrada -> salida completo en vez de
 // mostrar una "salida aislada" solo porque su entrada quedó fuera del rango.
@@ -43,7 +46,7 @@ function esFechaValida(valor) {
 // movimiento del equipo dentro del período; se resuelve con
 // idx_registros_equipo.
 const CONDICION_PERIODO = `(
-  (r.fecha_hora >= ? AND r.fecha_hora < date(?, '+1 day'))
+  (${rangoEntreFechasLocales('r.fecha_hora')})
   OR r.id_registro IN (
     SELECT r3.id_registro
     FROM (
@@ -52,7 +55,7 @@ const CONDICION_PERIODO = `(
       FROM (
         SELECT id_equipo, MIN(id_registro) AS primero
         FROM registros
-        WHERE fecha_hora >= ? AND fecha_hora < date(?, '+1 day')
+        WHERE ${rangoEntreFechasLocales('fecha_hora')}
         GROUP BY id_equipo
       ) pr
     ) previo
@@ -84,7 +87,7 @@ router.get('/', asyncHandler((req, res) => {
   }
 
   if (hoy) {
-    condiciones.push(rangoLocal('r.fecha_hora'));
+    condiciones.push(rangoUtc('r.fecha_hora'));
   }
   if (propios && req.user.rol !== ROL_SUPER) {
     condiciones.push(`r.id_usuario = ?`);
@@ -127,7 +130,7 @@ function estadisticasHoy(usuario) {
     SELECT tm.nombre_movimiento, COUNT(*) AS total
     FROM registros r
     JOIN tipos_movimiento tm ON tm.id_tipo_movimiento = r.id_tipo_movimiento
-    WHERE ${rangoLocal('r.fecha_hora')}
+    WHERE ${rangoUtc('r.fecha_hora')}
     GROUP BY tm.nombre_movimiento
   `).all();
 
@@ -155,7 +158,7 @@ function estadisticasHoy(usuario) {
     ? entradasHoy + salidasHoy
     : db.prepare(`
         SELECT COUNT(*) AS total FROM registros r
-        WHERE ${rangoLocal('r.fecha_hora')} AND r.id_usuario = ?
+        WHERE ${rangoUtc('r.fecha_hora')} AND r.id_usuario = ?
       `).get(usuario.id_usuario).total;
 
   return { entradasHoy, salidasHoy, equiposDentro, equiposRegistrados, misMovimientosHoy };
@@ -184,14 +187,14 @@ function estadoDeEquipo(id_equipo) {
   const ultimo = obtenerUltimoMovimiento(id_equipo);
 
   const ultimaEntrada = db.prepare(`
-    SELECT r.fecha_hora FROM registros r
+    SELECT ${aHoraLocal('r.fecha_hora')} AS fecha_hora FROM registros r
     JOIN tipos_movimiento tm ON tm.id_tipo_movimiento = r.id_tipo_movimiento
     WHERE r.id_equipo = ? AND LOWER(tm.nombre_movimiento) = 'entrada'
     ORDER BY r.id_registro DESC LIMIT 1
   `).get(id_equipo);
 
   const ultimaSalida = db.prepare(`
-    SELECT r.fecha_hora FROM registros r
+    SELECT ${aHoraLocal('r.fecha_hora')} AS fecha_hora FROM registros r
     JOIN tipos_movimiento tm ON tm.id_tipo_movimiento = r.id_tipo_movimiento
     WHERE r.id_equipo = ? AND LOWER(tm.nombre_movimiento) = 'salida'
     ORDER BY r.id_registro DESC LIMIT 1
@@ -217,13 +220,9 @@ router.get('/estado/:id_equipo', asyncHandler((req, res) => {
   res.json(estadoDeEquipo(id_equipo));
 }));
 
-// Fecha y hora actual de Bogotá en formato YYYY-MM-DD HH:MM:SS, que es como
-// se guardan los movimientos manuales.
-function fechaHoraBogota() {
-  const opciones = { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
-  const p = {};
-  new Intl.DateTimeFormat('en-CA', opciones).formatToParts(new Date()).forEach((x) => { p[x.type] = x.value; });
-  return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}:${p.second}`;
+// fecha_hora (UTC) de un registro recién creado, ya en hora local.
+function fechaLocalDeRegistro(id_registro) {
+  return db.prepare(`SELECT ${aHoraLocal('fecha_hora')} AS f FROM registros WHERE id_registro = ?`).get(id_registro).f;
 }
 
 // POST /api/registros — registrar entrada o salida
@@ -249,15 +248,13 @@ router.post('/', asyncHandler((req, res) => {
     return res.status(409).json({ error: 'Este equipo ya se encuentra afuera. Registra una entrada.' });
   }
 
-  const fechaHoraLocal = fechaHoraBogota();
-
+  // fecha_hora no se envía: la pone la base (CURRENT_TIMESTAMP, en UTC).
   const info = db.prepare(`
-    INSERT INTO registros (id_equipo, id_usuario, id_tipo_movimiento, observaciones, fecha_hora)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(equipo.id_equipo, req.user.id_usuario, tipoMov.id_tipo_movimiento, observaciones || null, fechaHoraLocal);
+    INSERT INTO registros (id_equipo, id_usuario, id_tipo_movimiento, observaciones)
+    VALUES (?, ?, ?, ?)
+  `).run(equipo.id_equipo, req.user.id_usuario, tipoMov.id_tipo_movimiento, observaciones || null);
 
-  const registro = db.prepare('SELECT * FROM registros WHERE id_registro = ?').get(info.lastInsertRowid);
-  res.status(201).json({ id_registro: info.lastInsertRowid, fecha_hora: registro.fecha_hora });
+  res.status(201).json({ id_registro: info.lastInsertRowid, fecha_hora: fechaLocalDeRegistro(info.lastInsertRowid) });
 }));
 
 // ── Escaneo rápido en portería ─────────────────────────────────
@@ -294,7 +291,7 @@ function recientesDeHoy(usuario) {
   const soloPropios = usuario.rol !== ROL_SUPER;
   return db.prepare(`
     ${SELECT_BASE}
-    WHERE ${rangoLocal('r.fecha_hora')} ${soloPropios ? 'AND r.id_usuario = ?' : ''}
+    WHERE ${rangoUtc('r.fecha_hora')} ${soloPropios ? 'AND r.id_usuario = ?' : ''}
     ORDER BY r.id_registro DESC LIMIT 20
   `).all(...(soloPropios ? [usuario.id_usuario] : []));
 }
@@ -332,11 +329,10 @@ router.post('/escanear', asyncHandler((req, res) => {
     const ultimo = obtenerUltimoMovimiento(equipo.id_equipo);
     const movimiento = ultimo?.nombre_movimiento?.toLowerCase() === 'entrada' ? 'Salida' : 'Entrada';
     const tipoMov = db.prepare('SELECT id_tipo_movimiento FROM tipos_movimiento WHERE nombre_movimiento = ?').get(movimiento);
-    const fecha_hora = fechaHoraBogota();
     const info = db.prepare(`
-      INSERT INTO registros (id_equipo, id_usuario, id_tipo_movimiento, fecha_hora) VALUES (?, ?, ?, ?)
-    `).run(equipo.id_equipo, req.user.id_usuario, tipoMov.id_tipo_movimiento, fecha_hora);
-    return { movimiento, id_registro: info.lastInsertRowid, fecha_hora };
+      INSERT INTO registros (id_equipo, id_usuario, id_tipo_movimiento) VALUES (?, ?, ?)
+    `).run(equipo.id_equipo, req.user.id_usuario, tipoMov.id_tipo_movimiento);
+    return { movimiento, id_registro: info.lastInsertRowid, fecha_hora: fechaLocalDeRegistro(info.lastInsertRowid) };
   });
 
   const registro = registrar();

@@ -1,7 +1,7 @@
 const express = require('express');
 const db = require('../db/database');
 const { authRequired, requireRole, ROL_SUPER } = require('../middleware/auth');
-const { rangoUtc } = require('../utils/periodos');
+const { aHoraLocal, rangoUtc } = require('../utils/periodos');
 
 const router = express.Router();
 
@@ -12,8 +12,8 @@ router.use(authRequired, requireRole(ROL_SUPER));
 
 // Traduce ?periodo=dia|semana|mes a una condición SQL sobre fecha_hora/fecha.
 // "dia" = hoy calendario, "semana" = semana calendaria actual, "mes" = mes
-// calendario actual. Todo en hora local del servidor. Se arma como rango
-// (utils/periodos.js) para que SQLite use los índices de fecha.
+// calendario actual, en hora de Colombia. Las columnas están en UTC; se arma
+// como rango (utils/periodos.js) para que SQLite use los índices de fecha.
 function condicionPeriodo(columna, periodo) {
   return rangoUtc(columna, ['dia', 'semana', 'mes'].includes(periodo) ? periodo : 'dia');
 }
@@ -72,7 +72,7 @@ router.get('/movimientos', (req, res) => {
   const cond = condicionPeriodo('r.fecha_hora', periodo);
 
   const rows = db.prepare(`
-    SELECT r.id_registro, r.fecha_hora, tm.nombre_movimiento,
+    SELECT r.id_registro, ${aHoraLocal('r.fecha_hora')} AS fecha_hora, tm.nombre_movimiento,
            e.serial, e.modelo, m.nombre_marca,
            p.nombres AS persona_nombres, p.apellidos AS persona_apellidos,
            u.usuario AS registrado_por
@@ -96,7 +96,7 @@ router.get('/logins', (req, res) => {
   const cond = condicionPeriodo('a.fecha', periodo);
 
   const rows = db.prepare(`
-    SELECT a.id_auditoria, a.fecha, a.descripcion, u.usuario, u.nombre, u.apellidos, r.nombre_rol
+    SELECT a.id_auditoria, ${aHoraLocal('a.fecha')} AS fecha, a.descripcion, u.usuario, u.nombre, u.apellidos, r.nombre_rol
     FROM auditoria a
     JOIN usuarios u ON u.id_usuario = a.id_usuario
     JOIN roles r ON r.id_rol = u.id_rol
