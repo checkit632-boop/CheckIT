@@ -1,5 +1,4 @@
 const express = require('express');
-const QRCode = require('qrcode');
 const db = require('../db/database');
 const { authRequired, requireRole, ROL_ADMIN, ROL_SUPER } = require('../middleware/auth');
 
@@ -34,18 +33,6 @@ router.get('/serial/:serial', (req, res) => {
   const row = db.prepare(`${SELECT_BASE} WHERE e.serial = ?`).get(req.params.serial);
   if (!row) return res.status(404).json({ error: 'Equipo no encontrado' });
   res.json(row);
-});
-
-// GET /api/equipos/:id/qr — devuelve el QR como Data URL PNG
-router.get('/:id/qr', async (req, res) => {
-  const eq = db.prepare('SELECT * FROM equipos WHERE id_equipo = ?').get(req.params.id);
-  if (!eq) return res.status(404).json({ error: 'Equipo no encontrado' });
-  try {
-    const dataUrl = await QRCode.toDataURL(eq.codigo_qr || eq.serial, { width: 260, margin: 1 });
-    res.json({ dataUrl, payload: eq.codigo_qr || eq.serial });
-  } catch (err) {
-    res.status(500).json({ error: 'No se pudo generar el QR' });
-  }
 });
 
 // POST /api/equipos (ambos roles pueden registrar equipos)

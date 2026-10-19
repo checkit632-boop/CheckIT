@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Download, Printer } from 'lucide-react';
-import api from '../api/client';
+import QRCode from 'qrcode';
 import Modal from './Modal';
 
 // Compone una imagen final (título + logo + QR + datos del equipo) para que
@@ -68,7 +68,12 @@ export default function EquipmentQRModal({ equipo, onClose }) {
 
   useEffect(() => {
     if (!equipo) { setDataUrl(null); return; }
-    api.get(`/equipos/${equipo.id_equipo}/qr`).then((res) => setDataUrl(res.data.dataUrl)).catch(() => setDataUrl(null));
+    // El QR se genera en el navegador (auditoría, punto 5.2): antes lo
+    // dibujaba el servidor en cada consulta, gastando CPU y memoria del
+    // backend. Mismo contenido y mismas opciones que antes.
+    QRCode.toDataURL(equipo.codigo_qr || equipo.serial, { width: 260, margin: 1 })
+      .then(setDataUrl)
+      .catch(() => setDataUrl(null));
   }, [equipo]);
 
   const handleDownload = async () => {
