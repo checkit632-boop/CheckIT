@@ -46,15 +46,10 @@ arrastraba el README viejo con información desactualizada
 
 ## Observaciones pendientes
 
-- **Zona horaria mixta en `registros.fecha_hora`.** Los movimientos manuales
-  se guardan en hora de Bogotá, pero los cierres automáticos de las
-  11:59 p. m. (`utils/reinicio.js`) se guardan en UTC (`CURRENT_TIMESTAMP`),
-  así que aparecen como del día siguiente a las 4:59 a. m. Además, el
-  Dashboard trata la columna como UTC y Control de Acceso como hora local:
-  los movimientos manuales de 12:00 a. m. a 4:59 a. m. aparecen en el
-  Dashboard como del día anterior. Se dejó sin cambiar para no alterar
-  resultados; corregirlo requiere unificar la zona horaria y migrar los
-  registros existentes.
+- **Zona horaria mixta en `registros.fecha_hora`.** *Resuelto en v6.3*
+  (`bugfix/fechas-en-utc`): todas las fechas se guardan en UTC y se muestran
+  en hora de Colombia. Ver `docs/Matriz de Trazabilidad - Auditoria Tecnica
+  Porteria.md`, punto 3.2.
 - **RAM.** El backend usa 55–69 MB en reposo. Tras la prueba de carga llegó a
   ~300 MB, sobre todo porque la prueba también pide una vez el historial
   completo (100.000 movimientos). Con el uso normal de Resumen (30 días) ese

@@ -361,6 +361,16 @@ jerarquía de creación estricta:
   manual del serial.
 - Historial de movimientos y resumen general (Administrador y Super Administrador).
 
+## Correcciones de la auditoría técnica de portería (v6.3)
+
+Escaneo en un solo viaje al servidor y sin pausas, soporte para pistolas
+lectoras USB/Bluetooth, límite de peticiones en el inicio de sesión,
+verificación de cuenta activa en cada petición, CORS restringido, fechas
+unificadas en UTC, paginación del inventario, QR generado en el navegador,
+aviso de privacidad (Ley 1581 de 2012) y política de copias de seguridad.
+Cada punto, con su rama, commits y evidencia, en
+[docs/Matriz de Trazabilidad - Auditoria Tecnica Porteria.md](docs/Matriz%20de%20Trazabilidad%20-%20Auditoria%20Tecnica%20Porteria.md).
+
 ## Mejoras de rendimiento antes de la implantación (v6.2)
 
 Índices, consultas por rango de fechas, historial de Resumen por período y
