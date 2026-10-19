@@ -120,8 +120,9 @@ router.get('/summary', requireRole(ROL_ADMIN, ROL_SUPER), asyncHandler((req, res
   res.json({ totales, total });
 }));
 
-// Estadísticas operativas para todos los roles (Control de Acceso).
-router.get('/stats/hoy', asyncHandler((req, res) => {
+// Contadores de Control de Acceso para el usuario dado. Los usan
+// GET /stats/hoy y POST /escanear (que los devuelve ya actualizados).
+function estadisticasHoy(usuario) {
   const movimientosHoy = db.prepare(`
     SELECT tm.nombre_movimiento, COUNT(*) AS total
     FROM registros r
@@ -150,14 +151,19 @@ router.get('/stats/hoy', asyncHandler((req, res) => {
   // Movimientos de hoy hechos por el usuario autenticado. El Super
   // Administrador ve el total global (de todos los usuarios); Administrador
   // y Operador de Sistema solo ven los que ellos mismos registraron.
-  const misMovimientosHoy = req.user.rol === ROL_SUPER
+  const misMovimientosHoy = usuario.rol === ROL_SUPER
     ? entradasHoy + salidasHoy
     : db.prepare(`
         SELECT COUNT(*) AS total FROM registros r
         WHERE ${rangoLocal('r.fecha_hora')} AND r.id_usuario = ?
-      `).get(req.user.id_usuario).total;
+      `).get(usuario.id_usuario).total;
 
-  res.json({ entradasHoy, salidasHoy, equiposDentro, equiposRegistrados, misMovimientosHoy });
+  return { entradasHoy, salidasHoy, equiposDentro, equiposRegistrados, misMovimientosHoy };
+}
+
+// Estadísticas operativas para todos los roles (Control de Acceso).
+router.get('/stats/hoy', asyncHandler((req, res) => {
+  res.json(estadisticasHoy(req.user));
 }));
 
 // Devuelve el último movimiento real de un equipo según el ID de registro
@@ -172,12 +178,9 @@ function obtenerUltimoMovimiento(id_equipo) {
   `).get(id_equipo);
 }
 
-// GET /api/registros/estado/:id_equipo
-router.get('/estado/:id_equipo', asyncHandler((req, res) => {
-  const { id_equipo } = req.params;
-  const equipo = db.prepare('SELECT * FROM equipos WHERE id_equipo = ?').get(id_equipo);
-  if (!equipo) return res.status(404).json({ error: 'Equipo no encontrado' });
-
+// Estado actual de un equipo (Adentro/Afuera), el siguiente movimiento que
+// le corresponde y las fechas de su última entrada y salida.
+function estadoDeEquipo(id_equipo) {
   const ultimo = obtenerUltimoMovimiento(id_equipo);
 
   const ultimaEntrada = db.prepare(`
@@ -198,13 +201,30 @@ router.get('/estado/:id_equipo', asyncHandler((req, res) => {
   const ultimoTipo = ultimo?.nombre_movimiento?.toLowerCase();
   const estado = ultimoTipo === 'entrada' ? 'Adentro' : 'Afuera';
 
-  res.json({
+  return {
     estado,
     siguiente_movimiento: estado === 'Afuera' ? 'Entrada' : 'Salida',
     ultima_entrada: ultimaEntrada?.fecha_hora || null,
     ultima_salida: ultimaSalida?.fecha_hora || null,
-  });
+  };
+}
+
+// GET /api/registros/estado/:id_equipo
+router.get('/estado/:id_equipo', asyncHandler((req, res) => {
+  const { id_equipo } = req.params;
+  const equipo = db.prepare('SELECT * FROM equipos WHERE id_equipo = ?').get(id_equipo);
+  if (!equipo) return res.status(404).json({ error: 'Equipo no encontrado' });
+  res.json(estadoDeEquipo(id_equipo));
 }));
+
+// Fecha y hora actual de Bogotá en formato YYYY-MM-DD HH:MM:SS, que es como
+// se guardan los movimientos manuales.
+function fechaHoraBogota() {
+  const opciones = { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+  const p = {};
+  new Intl.DateTimeFormat('en-CA', opciones).formatToParts(new Date()).forEach((x) => { p[x.type] = x.value; });
+  return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}:${p.second}`;
+}
 
 // POST /api/registros — registrar entrada o salida
 router.post('/', asyncHandler((req, res) => {
@@ -229,14 +249,7 @@ router.post('/', asyncHandler((req, res) => {
     return res.status(409).json({ error: 'Este equipo ya se encuentra afuera. Registra una entrada.' });
   }
 
-  // Genera string ISO local estandarizado YYYY-MM-DD HH:MM:SS
-  const ahora = new Date();
-  const opciones = { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
-  const partes = new Intl.DateTimeFormat('en-CA', opciones).formatToParts(ahora);
-  const hashFecha = {};
-  partes.forEach(p => hashFecha[p.type] = p.value);
-  
-  const fechaHoraLocal = `${hashFecha.year}-${hashFecha.month}-${hashFecha.day} ${hashFecha.hour}:${hashFecha.minute}:${hashFecha.second}`;
+  const fechaHoraLocal = fechaHoraBogota();
 
   const info = db.prepare(`
     INSERT INTO registros (id_equipo, id_usuario, id_tipo_movimiento, observaciones, fecha_hora)
@@ -245,6 +258,99 @@ router.post('/', asyncHandler((req, res) => {
 
   const registro = db.prepare('SELECT * FROM registros WHERE id_registro = ?').get(info.lastInsertRowid);
   res.status(201).json({ id_registro: info.lastInsertRowid, fecha_hora: registro.fecha_hora });
+}));
+
+// ── Escaneo rápido en portería ─────────────────────────────────
+// Un solo viaje al servidor por escaneo (antes eran 6 peticiones en
+// cascada): busca el equipo, decide si le toca entrada o salida, la
+// registra y devuelve todo lo que la pantalla necesita para actualizarse.
+
+// Una lectura repetida del mismo código dentro de esta ventana se ignora:
+// las pistolas lectoras y la cámara a veces leen dos veces el mismo código, y
+// sin esto se registraría la entrada y de inmediato su salida.
+const VENTANA_DUPLICADO_MS = 8000;
+const ultimosEscaneos = new Map(); // serial -> momento del último registro
+
+// Acepta el serial suelto (código de barras del fabricante) o el contenido
+// del QR de CheckIT ({"sistema":"CheckIT","serial":"..."}). Si una pistola
+// lectora configurada con otra distribución de teclado cambia las comillas o
+// las llaves, el serial se rescata igual con la expresión regular.
+function extraerSerial(codigo) {
+  const texto = String(codigo || '').trim();
+  if (!texto) return '';
+  try {
+    const json = JSON.parse(texto);
+    if (json && typeof json.serial === 'string') return json.serial.trim();
+  } catch {
+    // no es JSON válido; se intenta abajo
+  }
+  const enQr = texto.match(/serial\W+([A-Za-z0-9._\-/]+)/i);
+  return enQr ? enQr[1] : texto;
+}
+
+// Los mismos movimientos que muestra el panel "Movimientos recientes"
+// (equivale a GET /registros?limit=20&hoy=1&propios=1).
+function recientesDeHoy(usuario) {
+  const soloPropios = usuario.rol !== ROL_SUPER;
+  return db.prepare(`
+    ${SELECT_BASE}
+    WHERE ${rangoLocal('r.fecha_hora')} ${soloPropios ? 'AND r.id_usuario = ?' : ''}
+    ORDER BY r.id_registro DESC LIMIT 20
+  `).all(...(soloPropios ? [usuario.id_usuario] : []));
+}
+
+// POST /api/registros/escanear  { codigo }
+router.post('/escanear', asyncHandler((req, res) => {
+  const serial = extraerSerial(req.body?.codigo);
+  if (!serial) return res.status(400).json({ error: 'El código escaneado está vacío.' });
+
+  const equipo = db.prepare(`
+    SELECT e.*, m.nombre_marca, p.nombres AS persona_nombres, p.apellidos AS persona_apellidos, p.numero_documento
+    FROM equipos e
+    JOIN marcas m ON m.id_marca = e.id_marca
+    JOIN personas p ON p.id_persona = e.id_persona
+    WHERE e.serial = ?
+  `).get(serial);
+  if (!equipo) return res.status(404).json({ error: `No se encontró un equipo con el serial ${serial}` });
+  if (!equipo.activo) {
+    return res.status(409).json({ error: 'Este equipo está inactivo (dado de baja) y no puede registrar movimientos.', equipo });
+  }
+
+  const ultimoEscaneo = ultimosEscaneos.get(equipo.serial);
+  if (ultimoEscaneo && Date.now() - ultimoEscaneo < VENTANA_DUPLICADO_MS) {
+    return res.status(409).json({
+      error: 'Este equipo se acaba de registrar; se ignoró la lectura repetida.',
+      duplicado: true,
+      equipo,
+      estado: estadoDeEquipo(equipo.id_equipo),
+    });
+  }
+
+  // Decidir y registrar en una sola transacción, para que dos lecturas casi
+  // simultáneas no registren el mismo tipo de movimiento dos veces.
+  const registrar = db.transaction(() => {
+    const ultimo = obtenerUltimoMovimiento(equipo.id_equipo);
+    const movimiento = ultimo?.nombre_movimiento?.toLowerCase() === 'entrada' ? 'Salida' : 'Entrada';
+    const tipoMov = db.prepare('SELECT id_tipo_movimiento FROM tipos_movimiento WHERE nombre_movimiento = ?').get(movimiento);
+    const fecha_hora = fechaHoraBogota();
+    const info = db.prepare(`
+      INSERT INTO registros (id_equipo, id_usuario, id_tipo_movimiento, fecha_hora) VALUES (?, ?, ?, ?)
+    `).run(equipo.id_equipo, req.user.id_usuario, tipoMov.id_tipo_movimiento, fecha_hora);
+    return { movimiento, id_registro: info.lastInsertRowid, fecha_hora };
+  });
+
+  const registro = registrar();
+  ultimosEscaneos.set(equipo.serial, Date.now());
+  // Limpieza para que el mapa no crezca sin límite durante el día.
+  if (ultimosEscaneos.size > 5000) ultimosEscaneos.clear();
+
+  res.status(201).json({
+    ...registro,
+    equipo,
+    estado: estadoDeEquipo(equipo.id_equipo),
+    stats: estadisticasHoy(req.user),
+    recientes: recientesDeHoy(req.user),
+  });
 }));
 
 module.exports = router;
