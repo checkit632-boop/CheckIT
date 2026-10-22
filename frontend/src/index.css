@@ -37,19 +37,3 @@ body {
   50% { opacity: .3; }
 }
 .pulse-dot { animation: pulse-dot 1.2s infinite; }
-
-/* Slider del "Estado del sistema" (footer de Control de Acceso):
-   se desliza lentamente hacia la derecha, escondiéndose del lado de
-   "Última actualización" mientras reaparece de forma continua y suave
-   del lado de "Estado del sistema" (sin saltos ni cortes bruscos). */
-/* Slider del "Estado del sistema" (footer de Control de Acceso) */
-@keyframes status-slide {
-  0% { transform: translateX(-50%); }
-  100% { transform: translateX(0%); }
-}
-.animate-status-slide {
-  animation: status-slide 9s linear infinite;
-}
-.animate-status-slide:hover {
-  animation-play-state: paused;
-}

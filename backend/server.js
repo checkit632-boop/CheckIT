@@ -10,9 +10,9 @@ const equiposRoutes = require('./routes/equipos');
 const registrosRoutes = require('./routes/registros');
 const catalogosRoutes = require('./routes/catalogos');
 const dashboardRoutes = require('./routes/dashboard');
-// Se importa solo para que corra su inicialización (crea/migra las
-// tablas al arrancar el servidor) — no se usa directamente aquí.
-require('./db/database');
+// Al importarla se crea/migra el esquema; aquí se usa además para la
+// comprobación de /api/health.
+const db = require('./db/database');
 const { ejecutarRespaldo, obtenerDestinos } = require('./utils/backup');
 const { ejecutarReinicioOperativo } = require('./utils/reinicio');
 const errorHandler = require('./middleware/errorHandler');
@@ -49,7 +49,18 @@ app.use(cors({ origin: ORIGENES_PERMITIDOS }));
 app.use(compression());
 app.use(express.json());
 
-app.get('/api/health', (req, res) => res.json({ status: 'ok', service: 'CheckIT API' }));
+// Estado real del servicio: además de responder, comprueba que la base de
+// datos atienda una consulta. Lo usa la barra "Estado del sistema" de
+// Control de Acceso (antes mostraba "Conectada" fijo, aunque fallara).
+app.get('/api/health', (req, res) => {
+  let baseDeDatos = 'ok';
+  try {
+    db.prepare('SELECT 1').get();
+  } catch (err) {
+    baseDeDatos = 'error';
+  }
+  res.status(baseDeDatos === 'ok' ? 200 : 503).json({ status: baseDeDatos === 'ok' ? 'ok' : 'error', service: 'CheckIT API', baseDeDatos });
+});
 
 app.use('/api/auth', authRoutes);
 app.use('/api/usuarios', usuariosRoutes);
