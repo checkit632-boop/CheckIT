@@ -255,7 +255,8 @@ export default function ControlAccesos() {
           <div className="text-lg font-black text-brand-600 dark:text-brand-400 font-mono tracking-tight leading-none">
             {currentTime.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
           </div>
-          <div className="text-[10px] text-gray-600 dark:text-gray-400 capitalize mt-1 font-medium">
+          {/* En español solo va en mayúscula la primera letra: "Jueves, 22 de octubre de 2026". */}
+          <div className="text-[11px] text-gray-600 dark:text-gray-400 first-letter:uppercase mt-1 font-medium">
             {currentTime.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </div>
         </div>
@@ -279,7 +280,7 @@ export default function ControlAccesos() {
         <div className="w-[170px] shrink-0 flex flex-col gap-2 justify-between p-0.5 overflow-visible">
           <button
             onClick={() => setScannerOpen(true)}
-            className="w-full flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white py-2.5 rounded-2xl font-bold text-xs transition-all shrink-0 animate-inner-glow hover:animate-none shadow-sm"
+            className="w-full flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white py-2.5 rounded-2xl font-bold text-xs transition-colors shrink-0 shadow-sm"
           >
             <ScanLine size={16} className="text-white" />
             <span>Escanear QR</span>
@@ -295,7 +296,7 @@ export default function ControlAccesos() {
             </div>
           </div>
 
-          <div className="bg-brand-500 text-white p-3.5 rounded-2xl flex flex-col justify-between flex-1 shadow-sm">
+          <div className="bg-brand-700 text-white p-3.5 rounded-2xl flex flex-col justify-between flex-1 shadow-sm">
             <Activity size={15} className="text-brand-200" />
             <div>
               <div className="text-lg font-black font-mono leading-none">{stats.equiposDentro}</div>
