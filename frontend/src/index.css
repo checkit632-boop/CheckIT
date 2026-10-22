@@ -53,3 +53,16 @@ body {
 .animate-inner-glow {
   animation: innerGlowFast 0.6s infinite ease-in-out;
 }
+
+/* Desplazamiento continuo de la franja "Estado del sistema" (Control de
+   Acceso). Se detiene al pasar el mouse para poder leerla. */
+@keyframes status-slide {
+  0% { transform: translateX(-50%); }
+  100% { transform: translateX(0%); }
+}
+.animate-status-slide {
+  animation: status-slide 12s linear infinite;
+}
+.animate-status-slide:hover {
+  animation-play-state: paused;
+}
