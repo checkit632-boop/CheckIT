@@ -164,6 +164,31 @@ function estadisticasHoy(usuario) {
   return { entradasHoy, salidasHoy, equiposDentro, equiposRegistrados, misMovimientosHoy };
 }
 
+// GET /api/registros/dentro — equipos que están adentro ahora, con los
+// datos de su propietario y de la entrada que los dejó adentro. Lo usa la
+// tarjeta "Equipos Dentro" de Control de Acceso (todos los roles). Usa la
+// MISMA condición que el contador de estadisticasHoy (último movimiento por
+// id_registro = entrada), para que la lista y el número siempre coincidan.
+// Solo se entregan los datos necesarios para identificar al propietario.
+router.get('/dentro', asyncHandler((req, res) => {
+  res.json(db.prepare(`
+    SELECT e.id_equipo, e.serial, e.modelo, m.nombre_marca, e.activo,
+           p.nombres AS persona_nombres, p.apellidos AS persona_apellidos,
+           td.nombre_documento AS tipo_documento, p.numero_documento, p.celular,
+           ${aHoraLocal('r.fecha_hora')} AS fecha_entrada,
+           u.usuario AS registrado_por
+    FROM equipos e
+    JOIN registros r ON r.id_registro = (SELECT MAX(id_registro) FROM registros WHERE id_equipo = e.id_equipo)
+    JOIN tipos_movimiento tm ON tm.id_tipo_movimiento = r.id_tipo_movimiento
+    JOIN marcas m ON m.id_marca = e.id_marca
+    JOIN personas p ON p.id_persona = e.id_persona
+    JOIN tipos_documento td ON td.id_tipo_documento = p.id_tipo_documento
+    JOIN usuarios u ON u.id_usuario = r.id_usuario
+    WHERE LOWER(tm.nombre_movimiento) = 'entrada'
+    ORDER BY r.id_registro DESC
+  `).all());
+}));
+
 // Estadísticas operativas para todos los roles (Control de Acceso).
 router.get('/stats/hoy', asyncHandler((req, res) => {
   res.json(estadisticasHoy(req.user));
