@@ -27,10 +27,16 @@ se confunda al usarlo. Cada mejora está en su propia rama, integrada a
 | 16 | Modo oscuro incompleto en Registro de Equipos (bloques claros). | Tabla, buscador, formulario e insignias con versión oscura. | `fix/legibilidad-y-modo-oscuro` | 5eacdfd | b32808e |
 | 17 | Las fuentes se descargaban de Google Fonts; sin internet el diseño cambiaba. | Fuentes incluidas en la aplicación. | `fix/fuentes-locales` | 55f61db | 871e17b |
 
+## Funciones nuevas
+
+| Función | Descripción | Rama | Commits |
+|---|---|---|---|
+| Detalle de "Equipos Dentro" | Al pulsar la tarjeta "Equipos Dentro" de Control de Accesos se abre la lista de equipos que están adentro, con marca, modelo, serial, propietario (nombre, documento y celular si lo tiene), hora de entrada y quién la registró, con buscador. La lista usa la misma condición que el contador, así el número y la lista siempre coinciden. | `feature/detalle-equipos-dentro` | a192896 (backend), ab4ba16 (interfaz) |
+
 ## Pendiente de verificar
 
 - Revisar Control de Accesos en un monitor de 1366 × 768 (resolución
   habitual en portería): tiene medidas fijas y puede quedar apretada.
-- Probar en el navegador el diálogo de confirmación, la barra de estado del
+- Probar en el navegador la ventana de "Equipos Dentro", el diálogo de confirmación, la barra de estado del
   sistema (apagando el backend debe mostrar "Sin conexión") y el modo
   oscuro de Registro de Equipos.
