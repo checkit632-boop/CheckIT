@@ -361,6 +361,14 @@ jerarquía de creación estricta:
   manual del serial.
 - Historial de movimientos y resumen general (Administrador y Super Administrador).
 
+## Mejoras de usabilidad de la interfaz (v6.4)
+
+Textos y botones que ya no confunden (botón de registro, estado real del
+sistema, conteos del Historial iguales a su tabla), confirmaciones propias
+del sistema, mejor contraste y tamaño de letra, modo oscuro completo y
+fuentes incluidas para funcionar sin internet. Detalle con ramas y commits
+en [docs/Mejoras de Usabilidad - Interfaz.md](docs/Mejoras%20de%20Usabilidad%20-%20Interfaz.md).
+
 ## Correcciones de la auditoría técnica de portería (v6.3)
 
 Escaneo en un solo viaje al servidor y sin pausas, soporte para pistolas
