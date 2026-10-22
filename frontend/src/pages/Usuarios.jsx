@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import useUsuarios from '../hooks/useUsuarios';
+import { useConfirmacion } from '../context/ConfirmContext';
 import FiltroUsuarios from '../components/usuarios/FiltroUsuarios';
 import TablaUsuarios from '../components/usuarios/TablaUsuarios';
 import FormularioUsuario from '../components/usuarios/FormularioUsuario';
@@ -16,6 +17,7 @@ import {
 export default function Usuarios() {
   const { user: currentUser, isSuperAdmin } = useAuth();
   const { showToast } = useToast();
+  const confirmar = useConfirmacion();
   const { usuarios, roles, tiposDocumento, guardar, eliminar, cambiarEstado } = useUsuarios();
 
   const [busqueda, setBusqueda] = useState('');
@@ -47,13 +49,26 @@ export default function Usuarios() {
     if (await guardar(idEditando, form)) setModalAbierto(false);
   };
 
-  const handleEliminar = (id) => {
-    if (confirm('¿Eliminar este usuario?')) eliminar(id);
+  const handleEliminar = async (u) => {
+    const ok = await confirmar({
+      titulo: 'Eliminar usuario',
+      mensaje: `¿Eliminar a ${u.nombre} ${u.apellidos} (@${u.usuario})? Esta acción no se puede deshacer. Si la cuenta ya tiene registros, el sistema no la eliminará: en ese caso, inactívala.`,
+      textoConfirmar: 'Eliminar',
+      peligro: true,
+    });
+    if (ok) eliminar(u.id_usuario);
   };
 
-  const handleCambiarEstado = (u) => {
-    const accion = u.estado ? 'inactivar' : 'activar';
-    if (confirm(`¿Seguro que quieres ${accion} a ${u.nombre} ${u.apellidos}?`)) cambiarEstado(u);
+  const handleCambiarEstado = async (u) => {
+    const ok = await confirmar({
+      titulo: u.estado ? 'Inactivar usuario' : 'Activar usuario',
+      mensaje: u.estado
+        ? `${u.nombre} ${u.apellidos} no podrá iniciar sesión y perderá el acceso de inmediato. Su historial se conserva.`
+        : `${u.nombre} ${u.apellidos} podrá volver a iniciar sesión.`,
+      textoConfirmar: u.estado ? 'Inactivar' : 'Activar',
+      peligro: Boolean(u.estado),
+    });
+    if (ok) cambiarEstado(u);
   };
 
   return (

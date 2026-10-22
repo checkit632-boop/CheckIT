@@ -56,5 +56,6 @@ export function validarFormularioUsuario(form, esEdicion) {
 export function claseInsigniaRol(rol) {
   if (rol === 'Super Administrador') return 'bg-brand-800 text-white';
   if (rol === 'Administrador') return 'bg-gray-800 text-white';
-  return 'bg-blue-100 text-blue-800';
+  // Operador de Sistema: gris claro, dentro de la paleta (antes azul).
+  return 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-100';
 }

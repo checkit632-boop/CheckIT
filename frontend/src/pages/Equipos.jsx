@@ -7,6 +7,7 @@ import Modal from '../components/Modal';
 import EquipmentQRModal from '../components/EquipmentQRModal';
 import useDebounce from '../hooks/useDebounce';
 import AvisoPrivacidad from '../components/AvisoPrivacidad';
+import { useConfirmacion } from '../context/ConfirmContext';
 
 // Equipos por página del inventario (la paginación y la búsqueda las hace el
 // servidor: la pantalla ya no descarga todo el inventario ni todas las
@@ -25,6 +26,7 @@ const estadoBadge = (nombre) => {
 export default function Equipos() {
   const { isAdmin, isSuperAdmin } = useAuth();
   const { showToast } = useToast();
+  const confirmar = useConfirmacion();
 
   const [equipos, setEquipos] = useState([]);
   const [totalEquipos, setTotalEquipos] = useState(0);
@@ -130,8 +132,15 @@ export default function Equipos() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('¿Eliminar este equipo?')) return;
+  const handleDelete = async (eq) => {
+    const ok = await confirmar({
+      titulo: 'Eliminar equipo',
+      mensaje: `¿Eliminar el equipo ${eq.serial}? Esta acción no se puede deshacer. Si el equipo ya tiene movimientos, el sistema no lo eliminará: en ese caso, inactívalo.`,
+      textoConfirmar: 'Eliminar',
+      peligro: true,
+    });
+    if (!ok) return;
+    const id = eq.id_equipo;
     try {
       await api.delete(`/equipos/${id}`);
       showToast('Equipo eliminado');
@@ -144,8 +153,15 @@ export default function Equipos() {
   // Inactivar/activar (solo Super Administrador) — para equipos dados de
   // baja o retirados. No borra el historial de movimientos del equipo.
   const handleToggleActivo = async (eq) => {
-    const accion = eq.activo ? 'inactivar' : 'activar';
-    if (!confirm(`¿Seguro que quieres ${accion} el equipo ${eq.serial}?`)) return;
+    const ok = await confirmar({
+      titulo: eq.activo ? 'Inactivar equipo' : 'Activar equipo',
+      mensaje: eq.activo
+        ? `El equipo ${eq.serial} no podrá registrar entradas ni salidas. Su historial se conserva y puedes activarlo de nuevo cuando quieras.`
+        : `El equipo ${eq.serial} podrá volver a registrar entradas y salidas.`,
+      textoConfirmar: eq.activo ? 'Inactivar' : 'Activar',
+      peligro: Boolean(eq.activo),
+    });
+    if (!ok) return;
     try {
       await api.patch(`/equipos/${eq.id_equipo}/estado`, { activo: !eq.activo });
       showToast(`Equipo ${eq.activo ? 'inactivado' : 'activado'} correctamente`);
@@ -220,17 +236,18 @@ export default function Equipos() {
                   {isAdmin && (
                     <td className="px-5 py-3">
                       <div className="flex gap-2">
-                        <button onClick={() => openEdit(e)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"><Pencil size={15} /></button>
+                        <button onClick={() => openEdit(e)} title="Editar equipo" aria-label={`Editar equipo ${e.serial}`} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"><Pencil size={15} /></button>
                         {isSuperAdmin && (
                           <button
                             onClick={() => handleToggleActivo(e)}
                             title={e.activo ? 'Inactivar equipo' : 'Activar equipo'}
+                            aria-label={`${e.activo ? 'Inactivar' : 'Activar'} equipo ${e.serial}`}
                             className={`p-1.5 rounded-lg hover:bg-gray-100 ${e.activo ? 'text-amber-600' : 'text-brand-600'}`}
                           >
                             {e.activo ? <PowerOff size={15} /> : <Power size={15} />}
                           </button>
                         )}
-                        <button onClick={() => handleDelete(e.id_equipo)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-500"><Trash2 size={15} /></button>
+                        <button onClick={() => handleDelete(e)} title="Eliminar equipo" aria-label={`Eliminar equipo ${e.serial}`} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-red-600"><Trash2 size={15} /></button>
                       </div>
                     </td>
                   )}

@@ -20,18 +20,19 @@ function CeldaDocumento({ u }) {
 function AccionesUsuario({ u, esPropio, isSuperAdmin, onEditar, onCambiarEstado, onEliminar }) {
   return (
     <div className="flex gap-2">
-      <button onClick={() => onEditar(u)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-300"><Pencil size={15} /></button>
+      <button onClick={() => onEditar(u)} title="Editar usuario" aria-label={`Editar usuario ${u.usuario}`} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"><Pencil size={15} /></button>
       {isSuperAdmin && !esPropio && (
         <button
           onClick={() => onCambiarEstado(u)}
           title={u.estado ? 'Inactivar usuario' : 'Activar usuario'}
+          aria-label={`${u.estado ? 'Inactivar' : 'Activar'} usuario ${u.usuario}`}
           className={`p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${u.estado ? 'text-amber-600' : 'text-brand-600'}`}
         >
           {u.estado ? <PowerOff size={15} /> : <Power size={15} />}
         </button>
       )}
       {!esPropio && (
-        <button onClick={() => onEliminar(u.id_usuario)} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-red-500"><Trash2 size={15} /></button>
+        <button onClick={() => onEliminar(u)} title="Eliminar usuario" aria-label={`Eliminar usuario ${u.usuario}`} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-red-600"><Trash2 size={15} /></button>
       )}
     </div>
   );
