@@ -20,9 +20,11 @@ import {
   PERIODOS_HISTORIAL,
   PERIODO_POR_DEFECTO,
   agruparEnCiclos,
+  contarMovimientosDelPeriodo,
   campoDeFiltro,
   fechaLocalISO,
   filtrarCiclos,
+  plural,
   rangoUltimosDias,
 } from '../utils/resumen';
 
@@ -72,7 +74,6 @@ const fmt = (fechaStr) => {
 };
 
 export default function Resumen() {
-  const [summary, setSummary] = useState({ totales: [], total: 0 });
   const [registros, setRegistros] = useState([]);
 
   // Filtros de tabla
@@ -110,10 +111,6 @@ export default function Resumen() {
   // hace sobre los ciclos ya cargados, sin volver a pedirlos al servidor.
   const cargarDatos = useCallback(() => {
     api
-      .get('/registros/summary')
-      .then((res) => setSummary(res.data))
-      .catch(() => {});
-    api
       .get('/registros', { params: rangoUltimosDias(Number(periodoHistorial)) })
       .then((res) => {
         setRegistros(res.data || []);
@@ -125,8 +122,13 @@ export default function Resumen() {
     cargarDatos();
   }, [cargarDatos]);
 
-  const entradas = summary.totales?.find((t) => t.nombre_movimiento === 'Entrada')?.total || 0;
-  const salidas = summary.totales?.find((t) => t.nombre_movimiento === 'Salida')?.total || 0;
+  // La tarjeta cuenta el MISMO período que la tabla. Antes mostraba el total
+  // histórico (p. ej. 11) mientras la tabla mostraba 30 días (p. ej. 1).
+  const periodoActual = PERIODOS_HISTORIAL.find((p) => p.valor === periodoHistorial);
+  const { entradas, salidas, total: totalMovimientos } = useMemo(
+    () => contarMovimientosDelPeriodo(registros, rangoUltimosDias(Number(periodoHistorial)).desde),
+    [registros, periodoHistorial]
+  );
 
   // 2. Agrupación por ciclos (entrada / salida), ver utils/resumen.js
   const registrosAgrupados = useMemo(() => agruparEnCiclos(registros), [registros]);
@@ -614,10 +616,10 @@ export default function Resumen() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
-            Resumen General
+            Historial de Movimientos
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-            Reportes y estadísticas del sistema
+            Consulta, filtra y exporta las entradas y salidas de equipos
           </p>
         </div>
 
@@ -744,7 +746,8 @@ export default function Resumen() {
         <div className="bg-surface dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col justify-between">
           <div className="px-5 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2 font-bold text-gray-900 dark:text-gray-100 text-sm">
             <FileBarChart2 size={16} className="text-brand-600 dark:text-brand-400" />
-            <span>Movimientos por Tipo</span>
+            <span>Movimientos por tipo</span>
+            <span className="ml-auto text-[11px] font-medium text-gray-600 dark:text-gray-400">{periodoActual?.etiqueta}</span>
           </div>
           <div className="p-4 space-y-2.5">
             <div className="flex items-center justify-between text-xs">
@@ -761,8 +764,8 @@ export default function Resumen() {
             </div>
             <div className="flex items-center justify-between text-xs pt-1 border-t border-gray-100 dark:border-gray-700">
               <span className="text-gray-900 dark:text-gray-100 font-bold">Total</span>
-              <span className="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 font-bold">
-                {summary.total}
+              <span className="px-2.5 py-0.5 rounded-full bg-brand-700 text-white font-bold">
+                {totalMovimientos}
               </span>
             </div>
           </div>
@@ -790,7 +793,7 @@ export default function Resumen() {
             </select>
           </div>
           <span className="text-xs text-gray-400 dark:text-gray-500 font-medium">
-            {registrosFiltrados.length} registros encontrados en el período
+            {plural(registrosFiltrados.length, 'registro encontrado', 'registros encontrados')} en el período
           </span>
         </div>
 

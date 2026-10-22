@@ -108,3 +108,23 @@ export function filtrarCiclos(ciclos, searchTerm, filterType, filterValue) {
     return coincideBusqueda && coincideSelector;
   });
 }
+
+// Entradas y salidas del período cargado. El servidor también envía la
+// entrada previa de los ciclos que empezaron antes de `desde` (para armar el
+// ciclo completo); esas no se cuentan, así la tarjeta coincide con la tabla.
+export function contarMovimientosDelPeriodo(registros, desde) {
+  let entradas = 0;
+  let salidas = 0;
+  (registros || []).forEach((m) => {
+    if (!m.fecha_hora || m.fecha_hora.slice(0, 10) < desde) return;
+    const tipo = (m.nombre_movimiento || '').toLowerCase();
+    if (tipo === 'entrada') entradas += 1;
+    else if (tipo === 'salida') salidas += 1;
+  });
+  return { entradas, salidas, total: entradas + salidas };
+}
+
+// "1 registro" / "5 registros".
+export function plural(n, singular, pluralTexto = `${singular}s`) {
+  return `${n} ${n === 1 ? singular : pluralTexto}`;
+}
