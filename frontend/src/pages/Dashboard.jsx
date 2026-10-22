@@ -48,11 +48,14 @@ export default function Dashboard() {
   useEffect(() => { cargar(); }, [cargar]);
 
   const cards = resumen ? [
-    { label: 'Movimientos', value: resumen.totalMovimientos, icon: Activity, bg: 'bg-gray-800' },
+    // Mismos colores que en Control de Acceso: entrada en verde, salida en
+    // gris pizarra. El ámbar marca lo que hizo el sistema y no una persona.
+    // Antes "Entradas" e "Inicios de sesión" eran dos verdes casi iguales.
+    { label: 'Movimientos', value: resumen.totalMovimientos, icon: Activity, bg: 'bg-brand-900' },
     { label: 'Entradas', value: resumen.entradas, icon: ArrowDownCircle, bg: 'bg-brand-600' },
     { label: 'Salidas', value: resumen.salidas, icon: ArrowUpCircle, bg: 'bg-slate-700' },
     { label: 'Cierres automáticos', value: resumen.automaticos, icon: Bot, bg: 'bg-amber-700' },
-    { label: 'Inicios de sesión', value: resumen.totalLogins, icon: LogIn, bg: 'bg-brand-800' },
+    { label: 'Inicios de sesión', value: resumen.totalLogins, icon: LogIn, bg: 'bg-gray-800' },
   ] : [];
 
   return (
@@ -84,10 +87,15 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 mb-6">
         {cards.map(({ label, value, icon: Icon, bg }) => (
-          <div key={label} className={`relative overflow-hidden rounded-2xl ${bg} text-white p-4 shadow-sm`}>
-            <Icon size={44} className="absolute -right-3 -bottom-3 opacity-15" />
-            <div className="text-2xl font-bold">{loading ? '—' : value}</div>
-            <div className="text-xs opacity-90 mt-1">{label}</div>
+          <div key={label} className={`rounded-2xl ${bg} text-white p-4 shadow-sm flex items-start justify-between gap-2`}>
+            <div>
+              <div className="text-2xl font-bold">{loading ? '—' : value}</div>
+              <div className="text-xs mt-1">{label}</div>
+            </div>
+            {/* Ícono completo dentro de la tarjeta (antes quedaba cortado en la esquina). */}
+            <span className="shrink-0 rounded-xl bg-white/15 p-2">
+              <Icon size={18} />
+            </span>
           </div>
         ))}
       </div>
@@ -115,7 +123,7 @@ export default function Dashboard() {
             className={`px-5 py-3 text-sm font-bold border-b-2 transition-colors ${
               vista === 'movimientos'
                 ? 'border-brand-600 text-brand-700 dark:text-brand-400'
-                : 'border-transparent text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
+                : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
             }`}
           >
             Movimientos de equipos
@@ -125,7 +133,7 @@ export default function Dashboard() {
             className={`px-5 py-3 text-sm font-bold border-b-2 transition-colors ${
               vista === 'logins'
                 ? 'border-brand-600 text-brand-700 dark:text-brand-400'
-                : 'border-transparent text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
+                : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
             }`}
           >
             Inicios de sesión
@@ -204,7 +212,7 @@ export default function Dashboard() {
         )}
       </div>
 
-      <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-3">
+      <p className="text-xs text-gray-600 dark:text-gray-400 mt-3">
         &ldquo;Hoy&rdquo; se reinicia solo a las 00:00 (igual que en Control de Acceso). El reinicio operativo de las 11:59 p.m.
         cierra automáticamente los equipos que seguían &ldquo;Adentro&rdquo; — esos cierres aparecen aquí marcados como Sistema.
       </p>
