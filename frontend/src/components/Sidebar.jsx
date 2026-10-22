@@ -144,7 +144,7 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
 
           <div className="flex items-center gap-3 mb-3">
 
-            <div className="w-9 h-9 rounded-full bg-brand-400 flex items-center justify-center font-bold text-sm">
+            <div className="w-9 h-9 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold text-sm">
               {user?.nombre?.[0]?.toUpperCase() || '?'}
             </div>
 

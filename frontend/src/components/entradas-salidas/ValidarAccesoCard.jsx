@@ -87,8 +87,16 @@ export default function ValidarAccesoCard({
             esEntrada ? 'bg-brand-600 hover:bg-brand-700' : 'bg-slate-500 hover:bg-slate-600'
           }`}
         >
-          {esEntrada ? <ArrowDownCircle size={15} /> : <ArrowUpCircle size={15} />}
-          {registrando ? 'Procesando...' : !equipo?.activo && equipo ? 'Equipo inactivo' : esEntrada ? 'Registrar Entrada' : 'Registrar Salida'}
+          {/* Sin equipo buscado el botón no anuncia ningún movimiento: antes
+              decía "Registrar Salida" aunque no hubiera nada seleccionado. */}
+          {equipo && (esEntrada ? <ArrowDownCircle size={15} /> : <ArrowUpCircle size={15} />)}
+          {!equipo
+            ? 'Escanea o busca un equipo para registrar'
+            : registrando
+              ? 'Procesando...'
+              : !equipo.activo
+                ? 'Equipo inactivo'
+                : esEntrada ? 'Registrar Entrada' : 'Registrar Salida'}
         </button>
       </div>
     </div>
