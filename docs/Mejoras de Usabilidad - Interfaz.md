@@ -11,7 +11,7 @@ se confunda al usarlo. Cada mejora está en su propia rama, integrada a
 | 1 | El botón de Control de Accesos decía "Registrar Salida" sin ningún equipo buscado. | Sin equipo dice "Escanea o busca un equipo para registrar". | `fix/claridad-control-accesos` | 895c182 | 937ed82 |
 | 2 | La fecha aparecía como "Jueves, 22 De Octubre De 2026". | Mayúscula solo al inicio: "Jueves, 22 de octubre de 2026". | `fix/claridad-control-accesos` | 895c182 | 937ed82 |
 | 3 | "Equipos Dentro" con texto blanco sobre verde claro (contraste 2,99). | Verde oscuro de la paleta (6,46). Avatar del menú también más oscuro. | `fix/claridad-control-accesos` | 895c182 | 937ed82 |
-| 4 | El botón "Escanear QR" titilaba continuamente. | Se quita la animación. | `fix/claridad-control-accesos` | 895c182 | 937ed82 |
+| 4 | El botón "Escanear QR" titila continuamente. | **Se mantiene a propósito**: es lo primero que debe ver el vigilante. Se había quitado y se restauró por decisión del equipo; se detiene al pasar el mouse. | `fix/restaurar-titileo-escanear-qr` | e31239c | (este merge) |
 | 5 | "Estado del sistema" mostraba etiquetas fijas ("Conectada") que se repetían en bucle aunque el servidor fallara. | Muestra el estado real del servidor y de la base de datos, consultado cada 30 s; `/api/health` comprueba la base. | `fix/estado-real-del-sistema` | c70970d | ca969ad |
 | 6 | En el Historial, la tarjeta contaba todo el historial (11) mientras la tabla mostraba 30 días (1). | La tarjeta cuenta el mismo período de la tabla y lo indica. | `fix/coherencia-historial` | 3853367 | 8733a8c |
 | 7 | El título decía "Resumen General" y el menú "Historial de Movimientos". | Mismo nombre en ambos. | `fix/coherencia-historial` | 3853367 | 8733a8c |
