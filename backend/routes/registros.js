@@ -189,6 +189,52 @@ router.get('/dentro', asyncHandler((req, res) => {
   `).all());
 }));
 
+// GET /api/registros/cierres-automaticos — equipos que quedaron dentro y a
+// los que el reinicio operativo de las 11:59 p. m. les registró una salida
+// automática en su ÚLTIMA ejecución. Lo usa la alerta que ve el vigilante al
+// iniciar sesión (todos los roles), para que sepa que esos equipos en
+// realidad no salieron por la portería.
+// Cada ejecución del reinicio deja un evento 'SISTEMA' en la auditoría y sus
+// salidas quedan registradas en la misma transacción, segundos antes; por eso
+// se toman las salidas del usuario 'sistema' de los 10 minutos previos a ese
+// evento. Si anoche no quedó ningún equipo dentro, la lista viene vacía.
+router.get('/cierres-automaticos', asyncHandler((req, res) => {
+  const ultimoReinicio = db.prepare(`
+    SELECT fecha FROM auditoria
+    WHERE accion = 'SISTEMA' AND tabla_afectada = 'registros'
+    ORDER BY id_auditoria DESC LIMIT 1
+  `).get();
+  if (!ultimoReinicio) return res.json({ fecha_reinicio: null, equipos: [] });
+
+  const equipos = db.prepare(`
+    SELECT e.id_equipo, e.serial, e.modelo, m.nombre_marca,
+           p.nombres AS persona_nombres, p.apellidos AS persona_apellidos,
+           td.nombre_documento AS tipo_documento, p.numero_documento, p.celular,
+           ${aHoraLocal('ent.fecha_hora')} AS fecha_entrada,
+           ue.usuario AS entrada_registrada_por,
+           ${aHoraLocal('c.fecha_hora')} AS fecha_cierre,
+           EXISTS (SELECT 1 FROM registros r2 WHERE r2.id_equipo = c.id_equipo AND r2.id_registro > c.id_registro) AS tiene_movimiento_posterior
+    FROM registros c
+    JOIN usuarios us ON us.id_usuario = c.id_usuario AND us.usuario = 'sistema'
+    JOIN tipos_movimiento tm ON tm.id_tipo_movimiento = c.id_tipo_movimiento AND tm.nombre_movimiento = 'Salida'
+    JOIN equipos e ON e.id_equipo = c.id_equipo
+    JOIN marcas m ON m.id_marca = e.id_marca
+    JOIN personas p ON p.id_persona = e.id_persona
+    JOIN tipos_documento td ON td.id_tipo_documento = p.id_tipo_documento
+    LEFT JOIN registros ent ON ent.id_registro = (
+      SELECT MAX(id_registro) FROM registros WHERE id_equipo = c.id_equipo AND id_registro < c.id_registro
+    )
+    LEFT JOIN usuarios ue ON ue.id_usuario = ent.id_usuario
+    WHERE c.fecha_hora >= datetime(?, '-10 minutes') AND c.fecha_hora <= datetime(?, '+1 minute')
+    ORDER BY c.id_registro
+  `).all(ultimoReinicio.fecha, ultimoReinicio.fecha);
+
+  res.json({
+    fecha_reinicio: db.prepare(`SELECT ${aHoraLocal('?')} AS f`).get(ultimoReinicio.fecha).f,
+    equipos: equipos.map((e) => ({ ...e, tiene_movimiento_posterior: Boolean(e.tiene_movimiento_posterior) })),
+  });
+}));
+
 // Estadísticas operativas para todos los roles (Control de Acceso).
 router.get('/stats/hoy', asyncHandler((req, res) => {
   res.json(estadisticasHoy(req.user));
