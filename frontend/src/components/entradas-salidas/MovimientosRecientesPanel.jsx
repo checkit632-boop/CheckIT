@@ -10,12 +10,12 @@ export default function MovimientosRecientesPanel({ movimientos, isSuperAdmin })
         <h3 className="font-bold text-xs text-gray-900 dark:text-gray-100">
           {isSuperAdmin ? 'Movimientos de Hoy (todos)' : 'Mis Movimientos de Hoy'}
         </h3>
-        <span className="text-[10px] text-gray-600 dark:text-gray-400 font-medium">Resumen por equipo</span>
+        <span className="text-[11px] text-gray-600 dark:text-gray-400 font-medium">Resumen por equipo</span>
       </div>
 
       <div className="flex-1 overflow-y-auto">
         <table className="w-full text-left border-collapse">
-          <thead className=" bg-green-100 dark:bg-brand-900/40 sticky top-0 backdrop-blur-sm z-10 text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">
+          <thead className=" bg-green-100 dark:bg-brand-900/40 sticky top-0 backdrop-blur-sm z-10 text-[11px] text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">
             <tr>
               <th className="py-2 px-5 font-bold text-black dark:text-gray-100">MARCA PC / SERIAL / PROPIETARIO</th>
               <th className="py-2 px-5 font-bold text-center text-black dark:text-gray-100">ENTRADA</th>
@@ -34,16 +34,16 @@ export default function MovimientosRecientesPanel({ movimientos, isSuperAdmin })
                 <tr key={item.serial} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/40 transition-colors">
                   <td className="py-2.5 px-4">
                     <div className="font-bold text-gray-900 dark:text-gray-100 leading-snug">{item.equipo || 'Equipo'}</div>
-                    <div className="text-[10px] text-brand-600 dark:text-brand-400 font-mono font-bold leading-tight">{item.serial}</div>
-                    <div className="text-[10px] text-gray-700 dark:text-gray-300 leading-tight">{item.propietario}</div>
+                    <div className="text-[11px] text-brand-600 dark:text-brand-400 font-mono font-bold leading-tight">{item.serial}</div>
+                    <div className="text-[11px] text-gray-700 dark:text-gray-300 leading-tight">{item.propietario}</div>
                   </td>
                   <td className="py-2.5 px-4 text-center">
                     {item.entrada ? (
                       <div className="inline-flex flex-col items-center">
-                        <span className="px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-brand-100/80 dark:bg-brand-900/40 text-brand-800 dark:text-brand-300">
+                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-brand-100/80 dark:bg-brand-900/40 text-brand-800 dark:text-brand-300">
                           Entrada
                         </span>
-                        <span className="text-[10px] text-gray-600 dark:text-gray-400 font-mono mt-0.5">
+                        <span className="text-[11px] text-gray-600 dark:text-gray-400 font-mono mt-0.5">
                           {fmtHora(item.entrada)}
                         </span>
                       </div>
@@ -54,10 +54,10 @@ export default function MovimientosRecientesPanel({ movimientos, isSuperAdmin })
                   <td className="py-2.5 px-4 text-center">
                     {item.salida ? (
                       <div className="inline-flex flex-col items-center">
-                        <span className="px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-slate-900 text-white">
+                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-900 text-white">
                           Salida
                         </span>
-                        <span className="text-[10px] text-gray-600 dark:text-gray-400 font-mono mt-0.5">
+                        <span className="text-[11px] text-gray-600 dark:text-gray-400 font-mono mt-0.5">
                           {fmtHora(item.salida)}
                         </span>
                       </div>

@@ -109,7 +109,7 @@ export default function Dashboard() {
             {resumen.usuariosActivos.map((u) => (
               <span key={u.usuario} className="inline-flex items-center gap-1.5 bg-brand-50 dark:bg-brand-900/30 border border-brand-200 dark:border-brand-800 text-brand-800 dark:text-brand-300 text-xs font-semibold px-3 py-1.5 rounded-full">
                 {u.nombre} {u.apellidos}
-                <span className="bg-brand-600 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5">{u.total}</span>
+                <span className="bg-brand-600 text-white text-[11px] font-bold rounded-full px-1.5 py-0.5">{u.total}</span>
               </span>
             ))}
           </div>
@@ -154,13 +154,13 @@ export default function Dashboard() {
               </thead>
               <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
                 {movimientos.length === 0 ? (
-                  <tr><td colSpan={5} className="text-center text-gray-400 dark:text-gray-500 py-10">Sin movimientos en este periodo</td></tr>
+                  <tr><td colSpan={5} className="text-center text-gray-500 dark:text-gray-400 py-10">Sin movimientos en este periodo</td></tr>
                 ) : movimientos.map((m) => (
                   <tr key={m.id_registro} className="hover:bg-gray-50/60 dark:hover:bg-gray-700/40">
                     <td className="px-5 py-2.5 text-gray-800 dark:text-gray-200">{m.nombre_marca} {m.modelo}</td>
                     <td className="px-5 py-2.5 font-mono text-xs text-brand-600 dark:text-brand-400">{m.serial}</td>
                     <td className="px-5 py-2.5 text-center">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${m.nombre_movimiento === 'Entrada' ? 'bg-brand-100 dark:bg-brand-900/40 text-brand-800 dark:text-brand-300' : 'bg-slate-800 text-white'}`}>
+                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${m.nombre_movimiento === 'Entrada' ? 'bg-brand-100 dark:bg-brand-900/40 text-brand-800 dark:text-brand-300' : 'bg-slate-800 text-white'}`}>
                         {m.nombre_movimiento}
                       </span>
                     </td>
@@ -191,15 +191,15 @@ export default function Dashboard() {
               </thead>
               <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
                 {logins.length === 0 ? (
-                  <tr><td colSpan={3} className="text-center text-gray-400 dark:text-gray-500 py-10">Sin inicios de sesión en este periodo</td></tr>
+                  <tr><td colSpan={3} className="text-center text-gray-500 dark:text-gray-400 py-10">Sin inicios de sesión en este periodo</td></tr>
                 ) : logins.map((l) => (
                   <tr key={l.id_auditoria} className="hover:bg-gray-50/60 dark:hover:bg-gray-700/40">
                     <td className="px-5 py-2.5">
                       <div className="font-semibold text-gray-800 dark:text-gray-200">{l.nombre} {l.apellidos}</div>
-                      <div className="text-[11px] text-gray-400 dark:text-gray-500">@{l.usuario}</div>
+                      <div className="text-[11px] text-gray-500 dark:text-gray-400">@{l.usuario}</div>
                     </td>
                     <td className="px-5 py-2.5">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${l.nombre_rol === 'Super Administrador' ? 'bg-brand-800 text-white' : l.nombre_rol === 'Administrador' ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-100'}`}>
+                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${l.nombre_rol === 'Super Administrador' ? 'bg-brand-800 text-white' : l.nombre_rol === 'Administrador' ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-100'}`}>
                         {l.nombre_rol}
                       </span>
                     </td>

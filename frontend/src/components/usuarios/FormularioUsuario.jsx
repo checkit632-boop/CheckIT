@@ -2,7 +2,7 @@ import Modal from '../Modal';
 
 const inputCls = 'mt-1 w-full border border-gray-200 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500';
 const labelCls = 'text-sm font-semibold text-gray-700 dark:text-gray-300';
-const ayudaCls = 'text-[11px] text-gray-400 dark:text-gray-500 mt-1';
+const ayudaCls = 'text-[11px] text-gray-500 dark:text-gray-400 mt-1';
 
 function CampoTexto({ etiqueta, valor, onChange, ...props }) {
   return (
@@ -46,7 +46,7 @@ export default function FormularioUsuario({ abierto, esEdicion, form, setForm, r
         </div>
         <CampoTexto etiqueta="Usuario" valor={form.usuario} onChange={campo('usuario')} required />
         <div>
-          <label className={labelCls}>Contraseña {esEdicion && <span className="text-gray-400 dark:text-gray-500 font-normal">(dejar en blanco para no cambiar)</span>}</label>
+          <label className={labelCls}>Contraseña {esEdicion && <span className="text-gray-500 dark:text-gray-400 font-normal">(dejar en blanco para no cambiar)</span>}</label>
           <input type="password" className={inputCls} value={form.password} onChange={(e) => campo('password')(e.target.value)} />
           <p className={ayudaCls}>Mínimo 8 caracteres, con mayúscula, minúscula y número.</p>
         </div>

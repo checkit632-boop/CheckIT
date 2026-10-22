@@ -287,7 +287,7 @@ export default function ControlAccesos() {
           </button>
 
           <div className="bg-[#1e2532] text-white p-3.5 rounded-2xl flex flex-col justify-between flex-1 shadow-sm">
-            <Laptop size={15} className="text-gray-400 dark:text-gray-500" />
+            <Laptop size={15} className="text-gray-500 dark:text-gray-400" />
             <div>
               <div className="text-lg font-black font-mono leading-none">{stats.equipos}</div>
               <div className="text-[11px] text-gray-300 dark:text-gray-600 font-medium mt-1">
