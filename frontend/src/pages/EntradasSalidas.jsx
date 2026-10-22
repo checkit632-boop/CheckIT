@@ -18,6 +18,7 @@ import MovimientosRecientesPanel from '../components/entradas-salidas/Movimiento
 import EstadoSistemaFooter from '../components/entradas-salidas/EstadoSistemaFooter';
 import AvisoPrivacidad from '../components/AvisoPrivacidad';
 import EquiposDentroModal from '../components/entradas-salidas/EquiposDentroModal';
+import AlertaCierresAutomaticos from '../components/entradas-salidas/AlertaCierresAutomaticos';
 
 // Agrupación que ordena el equipo recién escaneado al inicio de la tabla
 function agruparMovimientos(logs) {
@@ -69,6 +70,7 @@ export default function ControlAccesos() {
   const [estadoInfo, setEstadoInfo] = useState(null);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [dentroOpen, setDentroOpen] = useState(false);
+  const [alertaCierresOpen, setAlertaCierresOpen] = useState(false);
   const [recientes, setRecientes] = useState([]);
   const [searching, setSearching] = useState(false);
   const [registrando, setRegistrando] = useState(false);
@@ -203,7 +205,7 @@ export default function ControlAccesos() {
   // ventana de la cámara está abierta, que tiene su propio campo manual).
   // Con la lista de "Equipos Dentro" abierta tampoco se registra: la pistola
   // escribe en su buscador, útil para ubicar un equipo en la lista.
-  useLectorCodigos((codigo) => escanear(codigo, 'lector'), { activo: !scannerOpen && !dentroOpen });
+  useLectorCodigos((codigo) => escanear(codigo, 'lector'), { activo: !scannerOpen && !dentroOpen && !alertaCierresOpen });
 
   const registrar = () => {
     if (!equipo || !estadoInfo) { showToast('Realiza una búsqueda primero', 'error'); return; }
@@ -265,6 +267,9 @@ export default function ControlAccesos() {
           </div>
         </div>
       </div>
+
+      {/* Aviso de equipos que quedaron dentro y cerró el reinicio de las 11:59 p. m. */}
+      <AlertaCierresAutomaticos onAbiertaCambio={setAlertaCierresOpen} />
 
       {/* 2. FORMULARIO VALIDAR ACCESO Y TARJETAS DERECHA */}
       <div className="flex gap-4 items-stretch shrink-0 mb-3">
