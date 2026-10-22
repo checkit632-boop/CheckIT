@@ -10,7 +10,7 @@ function CeldaDocumento({ u }) {
   return (
     <>
       <div className="font-mono-num">{u.numero_documento}</div>
-      <div className="text-[10px] text-gray-400 dark:text-gray-500">{u.tipo_documento}</div>
+      <div className="text-[11px] text-gray-500 dark:text-gray-400">{u.tipo_documento}</div>
     </>
   );
 }

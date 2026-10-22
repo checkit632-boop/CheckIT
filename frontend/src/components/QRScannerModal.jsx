@@ -214,7 +214,7 @@ export default function QRScannerModal({ open, onClose, onResult }) {
         className="min-h-[220px] bg-gray-900 rounded-xl flex items-center justify-center overflow-hidden"
       >
         {cameraError && (
-          <p className="text-gray-400 text-sm text-center px-4">
+          <p className="text-gray-300 text-sm text-center px-4">
             No se pudo acceder a la cámara. Usa el ingreso manual.
           </p>
         )}
@@ -224,7 +224,7 @@ export default function QRScannerModal({ open, onClose, onResult }) {
         <div className="flex items-center gap-2 mb-2">
           <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
 
-          <span className="text-xs text-gray-400 dark:text-gray-500 font-semibold">
+          <span className="text-xs text-gray-500 dark:text-gray-400 font-semibold">
             O ingresa el serial manualmente
           </span>
 

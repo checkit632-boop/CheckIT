@@ -101,7 +101,7 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
         {/* Menú */}
         <nav className="flex-1 px-3 py-4 overflow-y-auto">
 
-          <div className="text-[.68rem] font-bold tracking-wider text-gray-400 uppercase px-2 mb-2">
+          <div className="text-[.68rem] font-bold tracking-wider text-brand-200 uppercase px-2 mb-2">
             Menú
           </div>
 

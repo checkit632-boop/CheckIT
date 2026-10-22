@@ -18,9 +18,9 @@ const inputCls = 'mt-1 w-full border border-gray-200 dark:border-gray-600 dark:b
 const labelCls = 'text-sm font-semibold text-gray-700 dark:text-gray-300';
 
 const estadoBadge = (nombre) => {
-  if (nombre === 'Bueno') return 'bg-brand-100 text-brand-800';
-  if (nombre === 'Regular') return 'bg-yellow-100 text-yellow-800';
-  return 'bg-red-100 text-red-700';
+  if (nombre === 'Bueno') return 'bg-brand-100 dark:bg-brand-900/40 text-brand-800 dark:text-brand-300';
+  if (nombre === 'Regular') return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300';
+  return 'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-300';
 };
 
 export default function Equipos() {
@@ -202,7 +202,7 @@ export default function Equipos() {
         <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 font-bold text-gray-900 dark:text-gray-100">Inventario de Computadores</div>
         <div className="overflow-y-auto max-h-[520px]">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-gray-500 text-xs uppercase sticky top-0">
+            <thead className="bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400 text-xs uppercase sticky top-0">
               <tr>
                 <th className="text-left px-5 py-2.5">Serial</th>
                 <th className="text-left px-5 py-2.5">Marca / Modelo</th>
@@ -213,12 +213,12 @@ export default function Equipos() {
                 {isAdmin && <th className="text-left px-5 py-2.5">Acciones</th>}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-gray-50 dark:divide-gray-700 text-gray-800 dark:text-gray-200">
               {filtered.length === 0 && (
-                <tr><td colSpan={7} className="text-center text-gray-400 py-10">No hay computadores registrados</td></tr>
+                <tr><td colSpan={7} className="text-center text-gray-500 dark:text-gray-400 py-10">No hay computadores registrados</td></tr>
               )}
               {filtered.map((e) => (
-                <tr key={e.id_equipo} className={`hover:bg-gray-50 ${!e.activo ? 'opacity-60' : ''}`}>
+                <tr key={e.id_equipo} className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 ${!e.activo ? 'opacity-60' : ''}`}>
                   <td className="px-5 py-3 font-mono-num font-semibold">{e.serial}</td>
                   <td className="px-5 py-3"><strong>{e.nombre_marca}</strong> {e.modelo}</td>
                   <td className="px-5 py-3">{e.persona_nombres} {e.persona_apellidos}</td>
@@ -229,7 +229,7 @@ export default function Equipos() {
                     </span>
                   </td>
                   <td className="px-5 py-3">
-                    <button onClick={() => setQrEquipo(e)} className="flex items-center gap-1 text-brand-700 bg-brand-100 hover:bg-brand-200 px-2.5 py-1 rounded-lg text-xs font-semibold">
+                    <button onClick={() => setQrEquipo(e)} className="flex items-center gap-1 text-brand-700 dark:text-brand-300 bg-brand-100 dark:bg-brand-900/40 hover:bg-brand-200 dark:hover:bg-brand-900/60 px-2.5 py-1 rounded-lg text-xs font-semibold">
                       <QrCode size={13} /> Ver QR
                     </button>
                   </td>
@@ -295,17 +295,17 @@ export default function Equipos() {
                   onChange={(e) => { setPersonaSearch(e.target.value); setForm((f) => ({ ...f, id_persona: '' })); }}
                 />
                 {personaSearch && !form.id_persona && (
-                  <div className="mt-1 border border-gray-200 rounded-xl max-h-40 overflow-y-auto">
+                  <div className="mt-1 border border-gray-200 dark:border-gray-600 rounded-xl max-h-40 overflow-y-auto">
                     {filteredPersonas.map((p) => (
                       <div
                         key={p.id_persona}
-                        className="px-3 py-2 text-sm hover:bg-brand-50 cursor-pointer"
+                        className="px-3 py-2 text-sm text-gray-800 dark:text-gray-200 hover:bg-brand-50 dark:hover:bg-brand-900/30 cursor-pointer"
                         onClick={() => { setForm((f) => ({ ...f, id_persona: p.id_persona })); setPersonaSearch(`${p.nombres} ${p.apellidos} — ${p.numero_documento}`); }}
                       >
-                        {p.nombres} {p.apellidos} <span className="text-gray-400">— {p.numero_documento}</span>
+                        {p.nombres} {p.apellidos} <span className="text-gray-500 dark:text-gray-400">— {p.numero_documento}</span>
                       </div>
                     ))}
-                    {filteredPersonas.length === 0 && <div className="px-3 py-2 text-sm text-gray-400">Sin resultados</div>}
+                    {filteredPersonas.length === 0 && <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">Sin resultados</div>}
                   </div>
                 )}
                 <button type="button" onClick={() => setNuevaPersona(true)} className="text-xs text-brand-700 font-semibold mt-1.5 hover:underline">
@@ -313,7 +313,7 @@ export default function Equipos() {
                 </button>
               </>
             ) : (
-              <div className="border border-gray-200 rounded-xl p-3 mt-1 space-y-3 bg-gray-50">
+              <div className="border border-gray-200 dark:border-gray-600 rounded-xl p-3 mt-1 space-y-3 bg-gray-50 dark:bg-gray-900">
                 <div className="grid grid-cols-2 gap-3">
                   <input className={inputCls + ' mt-0'} placeholder="Nombres" value={personaForm.nombres} onChange={(e) => setPersonaForm((f) => ({ ...f, nombres: e.target.value }))} />
                   <input className={inputCls + ' mt-0'} placeholder="Apellidos" value={personaForm.apellidos} onChange={(e) => setPersonaForm((f) => ({ ...f, apellidos: e.target.value }))} />
@@ -359,7 +359,7 @@ export default function Equipos() {
           </div>
 
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={() => setModalOpen(false)} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold text-sm py-2.5 rounded-xl">Cancelar</button>
+            <button type="button" onClick={() => setModalOpen(false)} className="flex-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-semibold text-sm py-2.5 rounded-xl">Cancelar</button>
             <button type="submit" className="flex-1 bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm py-2.5 rounded-xl transition-colors">Guardar Equipo</button>
           </div>
         </form>

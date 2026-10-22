@@ -14,7 +14,7 @@ export const TEXTO_AVISO =
 export default function AvisoPrivacidad({ compacto = false }) {
   if (compacto) {
     return (
-      <div className="flex items-center gap-1.5 text-[10px] text-gray-500 dark:text-gray-400 min-w-0" title={TEXTO_AVISO}>
+      <div className="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400 min-w-0" title={TEXTO_AVISO}>
         <ShieldCheck size={12} className="shrink-0 text-brand-600 dark:text-brand-400" />
         <span className="truncate">Datos tratados según la Ley 1581 de 2012, solo para el control de equipos.</span>
       </div>

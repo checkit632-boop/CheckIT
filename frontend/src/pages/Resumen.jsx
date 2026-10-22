@@ -680,7 +680,7 @@ export default function Resumen() {
               <div className="relative">
                 <Search
                   size={15}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400"
                 />
                 <input
                   type="text"
@@ -722,7 +722,7 @@ export default function Resumen() {
                     type="text"
                     disabled
                     placeholder="Selecciona un filtro primero..."
-                    className="w-full border border-gray-100 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-gray-50 dark:bg-gray-900 text-gray-400 dark:text-gray-500 cursor-not-allowed"
+                    className="w-full border border-gray-100 dark:border-gray-700 rounded-xl px-3 py-2 text-xs bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400 cursor-not-allowed"
                   />
                 ) : (
                   <select
@@ -792,7 +792,7 @@ export default function Resumen() {
               ))}
             </select>
           </div>
-          <span className="text-xs text-gray-400 dark:text-gray-500 font-medium">
+          <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
             {plural(registrosFiltrados.length, 'registro encontrado', 'registros encontrados')} en el período
           </span>
         </div>
@@ -813,7 +813,7 @@ export default function Resumen() {
             <tbody className="divide-y divide-gray-50 dark:divide-gray-700 text-xs">
               {registrosFiltrados.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center text-gray-400 dark:text-gray-500 py-10">
+                  <td colSpan={7} className="text-center text-gray-500 dark:text-gray-400 py-10">
                     No se encontraron movimientos registrados
                   </td>
                 </tr>
@@ -825,7 +825,7 @@ export default function Resumen() {
                   >
                     <td className="px-5 py-3">
                       <div className="font-bold text-gray-900 dark:text-gray-100">{m.persona}</div>
-                      <div className="text-[10px] text-gray-400 dark:text-gray-500 font-mono">
+                      <div className="text-[11px] text-gray-500 dark:text-gray-400 font-mono">
                         {m.documento}
                       </div>
                     </td>
@@ -838,10 +838,10 @@ export default function Resumen() {
                     <td className="px-5 py-3 text-center">
                       {m.entrada ? (
                         <div className="inline-flex flex-col items-center">
-                          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-brand-100 dark:bg-brand-900/40 text-brand-800 dark:text-brand-300 leading-none mb-0.5">
+                          <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-brand-100 dark:bg-brand-900/40 text-brand-800 dark:text-brand-300 leading-none mb-0.5">
                             Entrada
                           </span>
-                          <span className="text-[10px] text-gray-500 dark:text-gray-400 font-mono">
+                          <span className="text-[11px] text-gray-500 dark:text-gray-400 font-mono">
                             {fmt(m.entrada)}
                           </span>
                         </div>
@@ -852,10 +852,10 @@ export default function Resumen() {
                     <td className="px-5 py-3 text-center">
                       {m.salida ? (
                         <div className="inline-flex flex-col items-center">
-                          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-slate-900 text-white leading-none mb-0.5">
+                          <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-900 text-white leading-none mb-0.5">
                             Salida
                           </span>
-                          <span className="text-[10px] text-gray-500 dark:text-gray-400 font-mono">
+                          <span className="text-[11px] text-gray-500 dark:text-gray-400 font-mono">
                             {fmt(m.salida)}
                           </span>
                         </div>
@@ -904,7 +904,7 @@ export default function Resumen() {
               </div>
               <button
                 onClick={() => setExportModalOpen(false)}
-                className="text-gray-400 dark:text-gray-500 hover:text-gray-600"
+                className="text-gray-500 dark:text-gray-400 hover:text-gray-600"
               >
                 <X size={18} />
               </button>
@@ -980,7 +980,7 @@ export default function Resumen() {
                     onChange={(e) => setSelectedMonth(e.target.value)}
                     className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-brand-500 bg-surface dark:bg-gray-800"
                   />
-                  <p className="text-[10px] text-brand-700 mt-1 font-medium">
+                  <p className="text-[11px] text-brand-700 mt-1 font-medium">
                     ✓ Abarca desde el día 1 hasta el cierre del mes seleccionado.
                   </p>
                 </div>
@@ -1086,7 +1086,7 @@ export default function Resumen() {
                           />
                         </label>
                         {logoUrl && (
-                          <span className="text-[10px] text-brand-600 dark:text-brand-400 font-bold">
+                          <span className="text-[11px] text-brand-600 dark:text-brand-400 font-bold">
                             ✓ Cargado
                           </span>
                         )}

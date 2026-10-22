@@ -54,7 +54,7 @@ export default function ValidarAccesoCard({
               <span className="text-xs font-bold text-gray-900 dark:text-gray-100 truncate">
                 {equipo.nombre_marca} {equipo.modelo}
               </span>
-              <span className="text-[10px] font-mono text-gray-500 dark:text-gray-400 shrink-0">{equipo.serial}</span>
+              <span className="text-[11px] font-mono text-gray-500 dark:text-gray-400 shrink-0">{equipo.serial}</span>
             </div>
             <div className="text-[11px] text-gray-600 dark:text-gray-400">
               Propietario: <span className="font-semibold text-gray-800 dark:text-gray-200">
@@ -68,7 +68,7 @@ export default function ValidarAccesoCard({
               ) : estadoInfo?.estado === 'Afuera' && estadoInfo?.ultima_salida ? (
                 <span className="font-semibold text-gray-800 dark:text-gray-200">Salida — {fmtHora(estadoInfo.ultima_salida)}</span>
               ) : (
-                <span className="text-gray-400 dark:text-gray-500">Sin movimientos registrados</span>
+                <span className="text-gray-500 dark:text-gray-400">Sin movimientos registrados</span>
               )}
             </div>
             {!equipo.activo && (
