@@ -32,11 +32,12 @@ se confunda al usarlo. Cada mejora está en su propia rama, integrada a
 | Función | Descripción | Rama | Commits |
 |---|---|---|---|
 | Detalle de "Equipos Dentro" | Al pulsar la tarjeta "Equipos Dentro" de Control de Accesos se abre la lista de equipos que están adentro, con marca, modelo, serial, propietario (nombre, documento y celular si lo tiene), hora de entrada y quién la registró, con buscador. La lista usa la misma condición que el contador, así el número y la lista siempre coinciden. | `feature/detalle-equipos-dentro` | a192896 (backend), ab4ba16 (interfaz) |
+| Alerta de equipos que quedaron dentro | Cuando un equipo no registra salida (p. ej. un funcionario lo deja en el centro varios días), el reinicio de las 11:59 p. m. le registra una salida automática. Al iniciar sesión, el vigilante (y todos los roles) ve una ventana con esos equipos, su propietario, cuándo entraron y quién lo registró, para saber que en realidad no salieron por la portería. Solo muestra los del último cierre; si esa noche no quedó nada, no aparece. | `feature/alerta-cierres-automaticos` | 3d06d9d (backend), 85f3956 (interfaz) |
 
 ## Pendiente de verificar
 
 - Revisar Control de Accesos en un monitor de 1366 × 768 (resolución
   habitual en portería): tiene medidas fijas y puede quedar apretada.
-- Probar en el navegador la ventana de "Equipos Dentro", el diálogo de confirmación, la barra de estado del
+- Probar en el navegador la ventana de "Equipos Dentro", la alerta de equipos que quedaron dentro (requiere que haya corrido el reinicio de las 11:59 p. m. con algún equipo adentro), el diálogo de confirmación, la barra de estado del
   sistema (apagando el backend debe mostrar "Sin conexión") y el modo
   oscuro de Registro de Equipos.
