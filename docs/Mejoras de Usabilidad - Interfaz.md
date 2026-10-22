@@ -1,0 +1,35 @@
+# Mejoras de usabilidad de la interfaz (v6.4)
+
+Revisión de la interfaz de CheckIT a partir de capturas de todas las
+pantallas, con el objetivo de que el sistema sea coherente y el usuario no
+se confunda al usarlo. Cada mejora está en su propia rama, integrada a
+`main` con `--no-ff`. El contraste se midió con la fórmula de WCAG 2.1
+(mínimo recomendado 4,5 para texto normal).
+
+| # | Problema observado | Corrección | Rama | Commit | Merge |
+|---|---|---|---|---|---|
+| 1 | El botón de Control de Accesos decía "Registrar Salida" sin ningún equipo buscado. | Sin equipo dice "Escanea o busca un equipo para registrar". | `fix/claridad-control-accesos` | 895c182 | 937ed82 |
+| 2 | La fecha aparecía como "Jueves, 22 De Octubre De 2026". | Mayúscula solo al inicio: "Jueves, 22 de octubre de 2026". | `fix/claridad-control-accesos` | 895c182 | 937ed82 |
+| 3 | "Equipos Dentro" con texto blanco sobre verde claro (contraste 2,99). | Verde oscuro de la paleta (6,46). Avatar del menú también más oscuro. | `fix/claridad-control-accesos` | 895c182 | 937ed82 |
+| 4 | El botón "Escanear QR" titilaba continuamente. | Se quita la animación. | `fix/claridad-control-accesos` | 895c182 | 937ed82 |
+| 5 | "Estado del sistema" mostraba etiquetas fijas ("Conectada") que se repetían en bucle aunque el servidor fallara. | Muestra el estado real del servidor y de la base de datos, consultado cada 30 s; `/api/health` comprueba la base. | `fix/estado-real-del-sistema` | c70970d | ca969ad |
+| 6 | En el Historial, la tarjeta contaba todo el historial (11) mientras la tabla mostraba 30 días (1). | La tarjeta cuenta el mismo período de la tabla y lo indica. | `fix/coherencia-historial` | 3853367 | 8733a8c |
+| 7 | El título decía "Resumen General" y el menú "Historial de Movimientos". | Mismo nombre en ambos. | `fix/coherencia-historial` | 3853367 | 8733a8c |
+| 8 | "1 registros encontrados". | Plural correcto: "1 registro encontrado". | `fix/coherencia-historial` | 3853367 | 8733a8c |
+| 9 | Íconos de las tarjetas de Auditoría cortados en la esquina. | Íconos completos dentro de la tarjeta. | `fix/legibilidad-auditoria` | 59e51e8 | b66251d |
+| 10 | "Entradas" e "Inicios de sesión" eran dos verdes casi iguales. | Colores alineados con Control de Acceso (entrada verde, salida gris pizarra, ámbar solo para el sistema). | `fix/legibilidad-auditoria` | 59e51e8 | b66251d |
+| 11 | Pestaña inactiva y nota de Auditoría en gris claro (contraste 2,4). | Gris oscuro (7,2) y texto de 12 px. | `fix/legibilidad-auditoria` | 59e51e8 | b66251d |
+| 12 | Eliminar e inactivar usaban la ventana `confirm()` del navegador, sin explicar consecuencias. | Diálogo propio del sistema, botón rojo en acciones destructivas y mensaje explicativo. | `fix/acciones-claras` | bd4a19e | 1fe12e7 |
+| 13 | Botones de acción solo con ícono, sin indicar qué hacen. | Texto al pasar el mouse y `aria-label` en editar, activar/inactivar y eliminar. | `fix/acciones-claras` | bd4a19e | 1fe12e7 |
+| 14 | Insignia "Operador de Sistema" y total en azul, fuera de la paleta. | Gris y verde de la paleta. | `fix/acciones-claras` · `fix/coherencia-historial` | bd4a19e · 3853367 | 1fe12e7 · 8733a8c |
+| 15 | 21 textos de 9-10 px y 16 textos gris claro difíciles de leer a distancia. | Mínimo 11 px; gris medio (contraste 4,6). | `fix/legibilidad-y-modo-oscuro` | 5eacdfd | b32808e |
+| 16 | Modo oscuro incompleto en Registro de Equipos (bloques claros). | Tabla, buscador, formulario e insignias con versión oscura. | `fix/legibilidad-y-modo-oscuro` | 5eacdfd | b32808e |
+| 17 | Las fuentes se descargaban de Google Fonts; sin internet el diseño cambiaba. | Fuentes incluidas en la aplicación. | `fix/fuentes-locales` | 55f61db | 871e17b |
+
+## Pendiente de verificar
+
+- Revisar Control de Accesos en un monitor de 1366 × 768 (resolución
+  habitual en portería): tiene medidas fijas y puede quedar apretada.
+- Probar en el navegador el diálogo de confirmación, la barra de estado del
+  sistema (apagando el backend debe mostrar "Sin conexión") y el modo
+  oscuro de Registro de Equipos.
