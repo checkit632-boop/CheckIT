@@ -280,7 +280,7 @@ export default function ControlAccesos() {
         <div className="w-[170px] shrink-0 flex flex-col gap-2 justify-between p-0.5 overflow-visible">
           <button
             onClick={() => setScannerOpen(true)}
-            className="w-full flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white py-2.5 rounded-2xl font-bold text-xs transition-colors shrink-0 shadow-sm"
+            className="w-full flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white py-2.5 rounded-2xl font-bold text-xs transition-colors shrink-0 animate-inner-glow hover:animate-none shadow-sm"
           >
             <ScanLine size={16} className="text-white" />
             <span>Escanear QR</span>
