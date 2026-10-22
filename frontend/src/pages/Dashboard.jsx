@@ -199,7 +199,7 @@ export default function Dashboard() {
                       <div className="text-[11px] text-gray-400 dark:text-gray-500">@{l.usuario}</div>
                     </td>
                     <td className="px-5 py-2.5">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${l.nombre_rol === 'Super Administrador' ? 'bg-brand-800 text-white' : l.nombre_rol === 'Administrador' ? 'bg-gray-800 text-white' : 'bg-blue-100 text-blue-800'}`}>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${l.nombre_rol === 'Super Administrador' ? 'bg-brand-800 text-white' : l.nombre_rol === 'Administrador' ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-100'}`}>
                         {l.nombre_rol}
                       </span>
                     </td>
