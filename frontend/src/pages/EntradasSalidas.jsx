@@ -17,6 +17,7 @@ import ValidarAccesoCard from '../components/entradas-salidas/ValidarAccesoCard'
 import MovimientosRecientesPanel from '../components/entradas-salidas/MovimientosRecientesPanel';
 import EstadoSistemaFooter from '../components/entradas-salidas/EstadoSistemaFooter';
 import AvisoPrivacidad from '../components/AvisoPrivacidad';
+import EquiposDentroModal from '../components/entradas-salidas/EquiposDentroModal';
 
 // Agrupación que ordena el equipo recién escaneado al inicio de la tabla
 function agruparMovimientos(logs) {
@@ -67,6 +68,7 @@ export default function ControlAccesos() {
   const [equipo, setEquipo] = useState(null);
   const [estadoInfo, setEstadoInfo] = useState(null);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [dentroOpen, setDentroOpen] = useState(false);
   const [recientes, setRecientes] = useState([]);
   const [searching, setSearching] = useState(false);
   const [registrando, setRegistrando] = useState(false);
@@ -199,7 +201,9 @@ export default function ControlAccesos() {
 
   // Lecturas de la pistola en cualquier parte de la pantalla (no mientras la
   // ventana de la cámara está abierta, que tiene su propio campo manual).
-  useLectorCodigos((codigo) => escanear(codigo, 'lector'), { activo: !scannerOpen });
+  // Con la lista de "Equipos Dentro" abierta tampoco se registra: la pistola
+  // escribe en su buscador, útil para ubicar un equipo en la lista.
+  useLectorCodigos((codigo) => escanear(codigo, 'lector'), { activo: !scannerOpen && !dentroOpen });
 
   const registrar = () => {
     if (!equipo || !estadoInfo) { showToast('Realiza una búsqueda primero', 'error'); return; }
@@ -296,13 +300,22 @@ export default function ControlAccesos() {
             </div>
           </div>
 
-          <div className="bg-brand-700 text-white p-3.5 rounded-2xl flex flex-col justify-between flex-1 shadow-sm">
-            <Activity size={15} className="text-brand-200" />
-            <div>
-              <div className="text-lg font-black font-mono leading-none">{stats.equiposDentro}</div>
-              <div className="text-[11px] text-brand-50 font-medium mt-1">Equipos Dentro</div>
-            </div>
-          </div>
+          {/* Al pulsarla muestra qué equipos están adentro y de quién son. */}
+          <button
+            type="button"
+            onClick={() => setDentroOpen(true)}
+            title="Ver los equipos que están dentro y sus propietarios"
+            className="group text-left bg-brand-700 hover:bg-brand-800 text-white p-3.5 rounded-2xl flex flex-col justify-between flex-1 shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
+          >
+            <span className="flex w-full items-center justify-between">
+              <Activity size={15} className="text-brand-200" />
+              <span className="text-[11px] font-semibold text-brand-100 group-hover:underline">Ver detalle</span>
+            </span>
+            <span>
+              <span className="block text-lg font-black font-mono leading-none">{stats.equiposDentro}</span>
+              <span className="block text-[11px] text-brand-50 font-medium mt-1">Equipos Dentro</span>
+            </span>
+          </button>
         </div>
       </div>
 
@@ -312,6 +325,12 @@ export default function ControlAccesos() {
       {/* 4. FOOTER ESTADO DEL SISTEMA */}
       <EstadoSistemaFooter lastUpdate={lastUpdate} />
       <AvisoPrivacidad compacto />
+
+      <EquiposDentroModal
+        open={dentroOpen}
+        onClose={() => setDentroOpen(false)}
+        onCargado={(total) => setStats((s) => ({ ...s, equiposDentro: total }))}
+      />
 
       <QRScannerModal open={scannerOpen} onClose={() => setScannerOpen(false)} onResult={(codigo) => escanear(codigo, 'camara')} />
 
