@@ -38,6 +38,7 @@ function cicloBase(m, sufijo, numCiclo) {
     entrada: null,
     salida: null,
     observaciones: m.observaciones_equipo || '',
+    accesorios: '',
     registrado_por: m.registrado_por || 'admin',
     ultimoIdRegistro: m.id_registro || 0,
   };
@@ -69,6 +70,8 @@ export function agruparEnCiclos(registros) {
       if (activos.has(serial)) completados.push(activos.get(serial));
       const ciclo = cicloBase(m, 'ciclo', siguienteNumero(serial));
       ciclo.entrada = m.fecha_hora;
+      // Los accesorios se registran en la entrada y describen todo el ciclo.
+      ciclo.accesorios = m.accesorios || '';
       activos.set(serial, ciclo);
     } else if (tipo === 'salida') {
       if (activos.has(serial)) {
@@ -101,7 +104,7 @@ export function filtrarCiclos(ciclos, searchTerm, filterType, filterValue) {
   return ciclos.filter((item) => {
     const coincideBusqueda =
       !term ||
-      [item.persona, item.documento, item.equipo, item.serial, item.registrado_por].some(
+      [item.persona, item.documento, item.equipo, item.serial, item.registrado_por, item.accesorios].some(
         (v) => v && v.toLowerCase().includes(term)
       );
     const coincideSelector = filterType === 'todos' || !filterValue || item[campo] === filterValue;

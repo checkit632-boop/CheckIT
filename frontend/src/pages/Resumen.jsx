@@ -179,6 +179,7 @@ export default function Resumen() {
       'Serial',
       'Responsable',
       'Equipo',
+      'Accesorios',
       'Registrado por',
     ];
     const rows = data.map((r) => [
@@ -188,6 +189,7 @@ export default function Resumen() {
       csvEscape(r.serial),
       csvEscape(r.persona),
       csvEscape(r.equipo),
+      csvEscape(r.accesorios),
       csvEscape(r.registradoPor || ''),
     ]);
 
@@ -237,6 +239,7 @@ export default function Resumen() {
       'Serial',
       'Responsable',
       'Equipo',
+      'Accesorios',
       'Registrado por',
     ];
     const numCols = headers.length;
@@ -255,6 +258,7 @@ export default function Resumen() {
       { width: 13 },
       { width: 18 },
       { width: 28 },
+      { width: 24 },
       { width: 24 },
       { width: 18 },
     ];
@@ -316,6 +320,7 @@ export default function Resumen() {
         r.serial,
         r.persona,
         r.equipo,
+        r.accesorios,
         r.registradoPor,
       ]);
       row.eachCell((cell) => {
@@ -450,6 +455,7 @@ export default function Resumen() {
             serial: r.serial || '—',
             persona: r.persona || '—',
             equipo: r.equipo || '—',
+            accesorios: r.accesorios || '—',
             registradoPor: r.registrado_por || '—',
             observaciones: r.observaciones || '',
           };
@@ -535,6 +541,7 @@ export default function Resumen() {
         r.serial,
         r.persona,
         r.equipo,
+        r.accesorios,
         r.registradoPor,
       ]);
 
@@ -551,6 +558,7 @@ export default function Resumen() {
             'SERIAL',
             'RESPONSABLE',
             'EQUIPO',
+            'ACCESORIOS',
             'REGISTRADO POR',
           ],
         ],
@@ -804,6 +812,7 @@ export default function Resumen() {
                 <th className="px-5 py-3 font-bold">RESPONSABLE</th>
                 <th className="px-5 py-3 font-bold">EQUIPO</th>
                 <th className="px-5 py-3 font-bold">SERIAL</th>
+                <th className="px-5 py-3 font-bold">ACCESORIOS</th>
                 <th className="px-5 py-3 font-bold text-center">ENTRADA</th>
                 <th className="px-5 py-3 font-bold text-center">SALIDA</th>
                 <th className="px-5 py-3 font-bold">REGISTRADO POR</th>
@@ -813,7 +822,7 @@ export default function Resumen() {
             <tbody className="divide-y divide-gray-50 dark:divide-gray-700 text-xs">
               {registrosFiltrados.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center text-gray-500 dark:text-gray-400 py-10">
+                  <td colSpan={8} className="text-center text-gray-500 dark:text-gray-400 py-10">
                     No se encontraron movimientos registrados
                   </td>
                 </tr>
@@ -834,6 +843,9 @@ export default function Resumen() {
                     </td>
                     <td className="px-5 py-3 font-mono font-bold text-brand-600 dark:text-brand-400">
                       {m.serial}
+                    </td>
+                    <td className="px-5 py-3 text-gray-700 dark:text-gray-300">
+                      {m.accesorios || '—'}
                     </td>
                     <td className="px-5 py-3 text-center">
                       {m.entrada ? (

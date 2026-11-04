@@ -19,6 +19,7 @@ import EstadoSistemaFooter from '../components/entradas-salidas/EstadoSistemaFoo
 import AvisoPrivacidad from '../components/AvisoPrivacidad';
 import EquiposDentroModal from '../components/entradas-salidas/EquiposDentroModal';
 import AlertaCierresAutomaticos from '../components/entradas-salidas/AlertaCierresAutomaticos';
+import AccesoriosEntradaModal from '../components/entradas-salidas/AccesoriosEntradaModal';
 
 // Agrupación que ordena el equipo recién escaneado al inicio de la tabla
 function agruparMovimientos(logs) {
@@ -71,6 +72,8 @@ export default function ControlAccesos() {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [dentroOpen, setDentroOpen] = useState(false);
   const [alertaCierresOpen, setAlertaCierresOpen] = useState(false);
+  // Entrada a la espera de que se indiquen los accesorios: { equipo, origen }.
+  const [entradaPendiente, setEntradaPendiente] = useState(null);
   const [recientes, setRecientes] = useState([]);
   const [searching, setSearching] = useState(false);
   const [registrando, setRegistrando] = useState(false);
@@ -164,15 +167,22 @@ export default function ControlAccesos() {
   // /registros/escanear), que decide entrada o salida y devuelve el equipo,
   // su estado, los contadores y los movimientos recientes ya actualizados.
   // origen: 'camara' | 'lector' (pistola USB/Bluetooth) | 'manual'.
-  const escanear = async (codigo, origen) => {
+  // Si le toca entrada, el servidor no registra hasta recibir los accesorios
+  // (lista de ids, vacía si solo trae el computador): se abre la ventana y al
+  // aceptar se vuelve a llamar a esta función con ellos.
+  const escanear = async (codigo, origen, accesorios) => {
     if (!codigo?.trim()) return;
     setScannerOpen(false);
     setSerialQuery('');
     empezarEspera();
     try {
-      const { data } = await api.post('/registros/escanear', { codigo: codigo.trim() });
+      const { data } = await api.post('/registros/escanear', { codigo: codigo.trim(), accesorios });
       setEquipo(data.equipo);
       setEstadoInfo(data.estado);
+      if (data.requiereAccesorios) {
+        setEntradaPendiente({ equipo: data.equipo, origen });
+        return;
+      }
       setRecientes(data.recientes);
       setStats({ equipos: data.stats.misMovimientosHoy || 0, equiposDentro: data.stats.equiposDentro || 0 });
       setLastUpdate(new Date());
@@ -205,7 +215,20 @@ export default function ControlAccesos() {
   // ventana de la cámara está abierta, que tiene su propio campo manual).
   // Con la lista de "Equipos Dentro" abierta tampoco se registra: la pistola
   // escribe en su buscador, útil para ubicar un equipo en la lista.
-  useLectorCodigos((codigo) => escanear(codigo, 'lector'), { activo: !scannerOpen && !dentroOpen && !alertaCierresOpen });
+  useLectorCodigos((codigo) => escanear(codigo, 'lector'), { activo: !scannerOpen && !dentroOpen && !alertaCierresOpen && !entradaPendiente });
+
+  const aceptarEntrada = async (accesorios) => {
+    const { equipo: equipoPendiente, origen } = entradaPendiente;
+    await escanear(equipoPendiente.serial, origen, accesorios);
+    setEntradaPendiente(null);
+  };
+
+  const cancelarEntrada = () => {
+    const origen = entradaPendiente?.origen;
+    setEntradaPendiente(null);
+    // Con la cámara se sigue con el siguiente equipo, igual que tras registrar.
+    if (origen === 'camara') setTimeout(() => setScannerOpen(true), 600);
+  };
 
   const registrar = () => {
     if (!equipo || !estadoInfo) { showToast('Realiza una búsqueda primero', 'error'); return; }
@@ -335,6 +358,13 @@ export default function ControlAccesos() {
         open={dentroOpen}
         onClose={() => setDentroOpen(false)}
         onCargado={(total) => setStats((s) => ({ ...s, equiposDentro: total }))}
+      />
+
+      <AccesoriosEntradaModal
+        equipo={entradaPendiente?.equipo || null}
+        enviando={registrando}
+        onAceptar={aceptarEntrada}
+        onCancelar={cancelarEntrada}
       />
 
       <QRScannerModal open={scannerOpen} onClose={() => setScannerOpen(false)} onResult={(codigo) => escanear(codigo, 'camara')} />

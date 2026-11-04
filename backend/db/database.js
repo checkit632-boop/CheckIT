@@ -151,6 +151,12 @@ function seed() {
       .forEach(m => insertMarca.run(m));
   }
 
+  const countAccesorios = db.prepare('SELECT COUNT(*) c FROM accesorios').get().c;
+  if (countAccesorios === 0) {
+    const insertAccesorio = db.prepare('INSERT INTO accesorios (nombre_accesorio) VALUES (?)');
+    ['Mouse', 'Cargador', 'Teclado', 'Pantalla'].forEach((a) => insertAccesorio.run(a));
+  }
+
   const countUsers = db.prepare('SELECT COUNT(*) c FROM usuarios').get().c;
   if (countUsers === 0) {
     const superRolId = db.prepare("SELECT id_rol FROM roles WHERE nombre_rol = 'Super Administrador'").get().id_rol;
