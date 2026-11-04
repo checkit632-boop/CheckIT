@@ -123,6 +123,23 @@ CREATE INDEX IF NOT EXISTS idx_registros_equipo  ON registros(id_equipo, id_regi
 CREATE INDEX IF NOT EXISTS idx_registros_fecha   ON registros(fecha_hora);
 CREATE INDEX IF NOT EXISTS idx_registros_usuario ON registros(id_usuario, fecha_hora);
 
+-- CATÁLOGO DE ACCESORIOS que pueden ingresar junto con el computador.
+CREATE TABLE IF NOT EXISTS accesorios (
+  id_accesorio      INTEGER PRIMARY KEY AUTOINCREMENT,
+  nombre_accesorio  TEXT NOT NULL UNIQUE
+);
+
+-- ACCESORIOS DE CADA ENTRADA (relación muchos a muchos: una entrada puede
+-- traer varios accesorios). Si la persona solo trae el computador, la entrada
+-- no tiene filas aquí.
+CREATE TABLE IF NOT EXISTS registro_accesorios (
+  id_registro   INTEGER NOT NULL,
+  id_accesorio  INTEGER NOT NULL,
+  PRIMARY KEY (id_registro, id_accesorio),
+  FOREIGN KEY (id_registro)  REFERENCES registros(id_registro),
+  FOREIGN KEY (id_accesorio) REFERENCES accesorios(id_accesorio)
+);
+
 -- TABLA AUDITORÍA
 CREATE TABLE IF NOT EXISTS auditoria (
   id_auditoria     INTEGER PRIMARY KEY AUTOINCREMENT,

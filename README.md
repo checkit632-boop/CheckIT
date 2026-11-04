@@ -35,7 +35,7 @@ sino como **etiquetas de Git** (ver "Versiones y etiquetas" más abajo).
 │   │   ├── personas.js      Personas (propietarias de equipos)
 │   │   ├── equipos.js       Inventario de computadores (el QR se genera en el navegador)
 │   │   ├── registros.js     Entradas / salidas
-│   │   ├── catalogos.js     Marcas, estados, tipos de documento/movimiento
+│   │   ├── catalogos.js     Marcas, estados, accesorios, tipos de documento/movimiento
 │   │   └── dashboard.js     Indicadores del tablero
 │   ├── scripts/             backup, reinicio y seed (datos de prueba ficticios)
 │   └── server.js
@@ -102,7 +102,7 @@ Esto:
 
 - crea el archivo `db/checkit.db` (SQLite) si no existe,
 - crea las tablas del esquema,
-- inserta los catálogos iniciales (roles, marcas, estados, tipos de documento/movimiento),
+- inserta los catálogos iniciales (roles, marcas, estados, accesorios, tipos de documento/movimiento),
 - migra automáticamente bases de datos creadas con versiones anteriores
   (agrega el rol Super Administrador, la columna `observaciones` en equipos,
   y el tipo/número de documento en usuarios, sin borrar nada),
@@ -360,6 +360,15 @@ jerarquía de creación estricta:
 - Escáner de QR con cámara (librería `html5-qrcode`) con respaldo de ingreso
   manual del serial.
 - Historial de movimientos y resumen general (Administrador y Super Administrador).
+
+## Accesorios al registrar la entrada
+
+Antes de registrar una entrada, Control de Acceso abre una ventana para
+indicar qué accesorios trae la persona (Mouse, Cargador, Teclado, Pantalla;
+selección múltiple y opcional). Las salidas se registran directo. Se guardan
+en las tablas `accesorios` y `registro_accesorios`, que las bases existentes
+reciben solas al arrancar el backend, y se ven en el Historial de Movimientos
+y en sus reportes.
 
 ## Mejoras de usabilidad de la interfaz (v6.4)
 

@@ -17,7 +17,13 @@ const SELECT_BASE = `
          tm.nombre_movimiento,
          e.serial, e.modelo, e.observaciones AS observaciones_equipo, m.nombre_marca,
          p.nombres AS persona_nombres, p.apellidos AS persona_apellidos, p.numero_documento,
-         u.usuario AS registrado_por
+         u.usuario AS registrado_por,
+         (SELECT GROUP_CONCAT(nombre_accesorio, ', ') FROM (
+            SELECT a.nombre_accesorio FROM registro_accesorios ra
+            JOIN accesorios a ON a.id_accesorio = ra.id_accesorio
+            WHERE ra.id_registro = r.id_registro
+            ORDER BY a.id_accesorio
+          )) AS accesorios
   FROM registros r
   JOIN tipos_movimiento tm ON tm.id_tipo_movimiento = r.id_tipo_movimiento
   JOIN equipos e ON e.id_equipo = r.id_equipo
@@ -29,6 +35,20 @@ const SELECT_BASE = `
 const LIMIT_POR_DEFECTO = 100;
 const LIMIT_MAXIMO = 500;
 const FECHA_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+// Valida la lista de accesorios enviada al registrar una entrada. Devuelve los
+// ids sin repetir, o null si algún valor no es un accesorio del catálogo.
+function normalizarAccesorios(lista) {
+  if (!Array.isArray(lista)) return null;
+  const ids = [...new Set(lista)];
+  const existe = db.prepare('SELECT 1 FROM accesorios WHERE id_accesorio = ?');
+  return ids.every((id) => Number.isInteger(id) && existe.get(id)) ? ids : null;
+}
+
+function guardarAccesorios(idRegistro, ids) {
+  const insertar = db.prepare('INSERT INTO registro_accesorios (id_registro, id_accesorio) VALUES (?, ?)');
+  ids.forEach((id) => insertar.run(idRegistro, id));
+}
 
 // Acepta solo fechas reales en formato AAAA-MM-DD (rechaza 2026-02-30).
 function esFechaValida(valor) {
@@ -298,7 +318,7 @@ function fechaLocalDeRegistro(id_registro) {
 
 // POST /api/registros — registrar entrada o salida
 router.post('/', asyncHandler((req, res) => {
-  const { serial, tipo, observaciones } = req.body;
+  const { serial, tipo, observaciones, accesorios } = req.body;
   if (!serial || !tipo) return res.status(400).json({ error: 'Serial y tipo de movimiento son obligatorios' });
 
   const equipo = db.prepare('SELECT * FROM equipos WHERE serial = ?').get(serial);
@@ -307,6 +327,12 @@ router.post('/', asyncHandler((req, res) => {
 
   const tipoMov = db.prepare('SELECT * FROM tipos_movimiento WHERE LOWER(nombre_movimiento) = LOWER(?)').get(tipo);
   if (!tipoMov) return res.status(400).json({ error: 'Tipo de movimiento inválido' });
+
+  const idsAccesorios = accesorios === undefined ? [] : normalizarAccesorios(accesorios);
+  if (!idsAccesorios) return res.status(400).json({ error: 'La lista de accesorios no es válida.' });
+  if (idsAccesorios.length > 0 && tipo.toLowerCase() !== 'entrada') {
+    return res.status(400).json({ error: 'Los accesorios solo se registran en la entrada.' });
+  }
 
   const ultimo = obtenerUltimoMovimiento(equipo.id_equipo);
   const ultimoTipo = ultimo?.nombre_movimiento?.toLowerCase();
@@ -320,10 +346,14 @@ router.post('/', asyncHandler((req, res) => {
   }
 
   // fecha_hora no se envía: la pone la base (CURRENT_TIMESTAMP, en UTC).
-  const info = db.prepare(`
-    INSERT INTO registros (id_equipo, id_usuario, id_tipo_movimiento, observaciones)
-    VALUES (?, ?, ?, ?)
-  `).run(equipo.id_equipo, req.user.id_usuario, tipoMov.id_tipo_movimiento, observaciones || null);
+  const info = db.transaction(() => {
+    const resultado = db.prepare(`
+      INSERT INTO registros (id_equipo, id_usuario, id_tipo_movimiento, observaciones)
+      VALUES (?, ?, ?, ?)
+    `).run(equipo.id_equipo, req.user.id_usuario, tipoMov.id_tipo_movimiento, observaciones || null);
+    guardarAccesorios(resultado.lastInsertRowid, idsAccesorios);
+    return resultado;
+  })();
 
   res.status(201).json({ id_registro: info.lastInsertRowid, fecha_hora: fechaLocalDeRegistro(info.lastInsertRowid) });
 }));
@@ -367,10 +397,18 @@ function recientesDeHoy(usuario) {
   `).all(...(soloPropios ? [usuario.id_usuario] : []));
 }
 
-// POST /api/registros/escanear  { codigo }
+// POST /api/registros/escanear  { codigo, accesorios? }
+// La entrada se hace en dos pasos, porque antes hay que preguntar qué
+// accesorios trae la persona: sin `accesorios` responde requiereAccesorios y
+// no registra nada; con `accesorios` (lista de ids, vacía si solo trae el
+// computador) registra la entrada. La salida se registra en el primer paso.
 router.post('/escanear', asyncHandler((req, res) => {
   const serial = extraerSerial(req.body?.codigo);
   if (!serial) return res.status(400).json({ error: 'El código escaneado está vacío.' });
+
+  const confirmaEntrada = req.body?.accesorios !== undefined;
+  const idsAccesorios = confirmaEntrada ? normalizarAccesorios(req.body.accesorios) : [];
+  if (!idsAccesorios) return res.status(400).json({ error: 'La lista de accesorios no es válida.' });
 
   const equipo = db.prepare(`
     SELECT e.*, m.nombre_marca, p.nombres AS persona_nombres, p.apellidos AS persona_apellidos, p.numero_documento
@@ -399,14 +437,29 @@ router.post('/escanear', asyncHandler((req, res) => {
   const registrar = db.transaction(() => {
     const ultimo = obtenerUltimoMovimiento(equipo.id_equipo);
     const movimiento = ultimo?.nombre_movimiento?.toLowerCase() === 'entrada' ? 'Salida' : 'Entrada';
+    if (movimiento === 'Entrada' && !confirmaEntrada) return { requiereAccesorios: true };
+    // Otro puesto registró la entrada mientras esta ventana estaba abierta: no
+    // se convierte lo confirmado aquí en una salida que nadie pidió.
+    if (movimiento === 'Salida' && confirmaEntrada) return { yaAdentro: true };
     const tipoMov = db.prepare('SELECT id_tipo_movimiento FROM tipos_movimiento WHERE nombre_movimiento = ?').get(movimiento);
     const info = db.prepare(`
       INSERT INTO registros (id_equipo, id_usuario, id_tipo_movimiento) VALUES (?, ?, ?)
     `).run(equipo.id_equipo, req.user.id_usuario, tipoMov.id_tipo_movimiento);
+    guardarAccesorios(info.lastInsertRowid, idsAccesorios);
     return { movimiento, id_registro: info.lastInsertRowid, fecha_hora: fechaLocalDeRegistro(info.lastInsertRowid) };
   });
 
   const registro = registrar();
+  if (registro.requiereAccesorios) {
+    return res.json({ requiereAccesorios: true, equipo, estado: estadoDeEquipo(equipo.id_equipo) });
+  }
+  if (registro.yaAdentro) {
+    return res.status(409).json({
+      error: 'Este equipo ya se encuentra adentro. Registra una salida.',
+      equipo,
+      estado: estadoDeEquipo(equipo.id_equipo),
+    });
+  }
   ultimosEscaneos.set(equipo.serial, Date.now());
   // Limpieza para que el mapa no crezca sin límite durante el día.
   if (ultimosEscaneos.size > 5000) ultimosEscaneos.clear();

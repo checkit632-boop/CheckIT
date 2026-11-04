@@ -105,6 +105,24 @@ Control de accesos: cada entrada o salida de un equipo.
 Índices: `idx_registros_equipo (id_equipo, id_registro)`,
 `idx_registros_fecha (fecha_hora)` e `idx_registros_usuario (id_usuario, fecha_hora)`.
 
+## accesorios
+Catálogo de accesorios que pueden ingresar junto con el computador.
+
+| Campo | Tipo | Restricciones | Descripción |
+|---|---|---|---|
+| id_accesorio | INTEGER | PK, autoincremental | Identificador |
+| nombre_accesorio | TEXT | NN, UQ | Mouse, Cargador, Teclado, Pantalla |
+
+## registro_accesorios
+Accesorios de cada entrada (muchos a muchos). Una entrada sin filas aquí
+significa que la persona solo trajo el computador, o que es anterior a esta
+función.
+
+| Campo | Tipo | Restricciones | Descripción |
+|---|---|---|---|
+| id_registro | INTEGER | PK, NN, FK → registros | Movimiento de entrada |
+| id_accesorio | INTEGER | PK, NN, FK → accesorios | Accesorio que ingresó |
+
 ## auditoria
 | Campo | Tipo | Restricciones | Descripción |
 |---|---|---|---|

@@ -15,6 +15,8 @@ erDiagram
     equipos ||--o{ registros : "tiene"
     usuarios ||--o{ registros : "registra"
     tipos_movimiento ||--o{ registros : "clasifica"
+    registros ||--o{ registro_accesorios : "incluye"
+    accesorios ||--o{ registro_accesorios : "se registra en"
     usuarios ||--o{ auditoria : "genera"
     usuarios ||--o{ codigos_verificacion : "recibe"
     usuarios ||..o| login_intentos : "por nombre de usuario"
@@ -83,6 +85,14 @@ erDiagram
         INTEGER id_tipo_movimiento FK
         DATETIME fecha_hora
         TEXT observaciones
+    }
+    accesorios {
+        INTEGER id_accesorio PK
+        TEXT nombre_accesorio UK
+    }
+    registro_accesorios {
+        INTEGER id_registro PK,FK
+        INTEGER id_accesorio PK,FK
     }
     auditoria {
         INTEGER id_auditoria PK
