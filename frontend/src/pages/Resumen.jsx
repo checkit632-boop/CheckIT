@@ -104,7 +104,7 @@ export default function Resumen() {
   const [companyName, setCompanyName] = useState('');
   const [logoUrl, setLogoUrl] = useState(null);
   const [footerNote, setFooterNote] = useState(
-    'CheckIT - Sistema Inteligente de Control de Equipos'
+    'CheckIT - Sistema de Control de Equipos de Cómputo'
   );
 
   // 1. Cargar datos generales. Solo depende del período: buscar y filtrar se
@@ -125,7 +125,11 @@ export default function Resumen() {
   // La tarjeta cuenta el MISMO período que la tabla. Antes mostraba el total
   // histórico (p. ej. 11) mientras la tabla mostraba 30 días (p. ej. 1).
   const periodoActual = PERIODOS_HISTORIAL.find((p) => p.valor === periodoHistorial);
-  const { entradas, salidas, total: totalMovimientos } = useMemo(
+  const {
+    entradas,
+    salidas,
+    total: totalMovimientos,
+  } = useMemo(
     () => contarMovimientosDelPeriodo(registros, rangoUltimosDias(Number(periodoHistorial)).desde),
     [registros, periodoHistorial]
   );
@@ -355,7 +359,7 @@ export default function Resumen() {
     sheet.mergeCells(footerRowIndex, colTextoFooter, footerRowIndex, 4);
     const footerNoteCell = sheet.getCell(footerRowIndex, colTextoFooter);
     footerNoteCell.value =
-      footerNote.trim() || 'CheckIT - Sistema Inteligente de Control de Equipos';
+      footerNote.trim() || 'CheckIT - Sistema de Control de Equipos de Cómputo';
     footerNoteCell.font = { size: 9, italic: true, color: { argb: 'FF9CA3AF' } };
     footerNoteCell.alignment = { vertical: 'middle' };
 
@@ -592,7 +596,7 @@ export default function Resumen() {
           doc.setFont('helvetica', 'normal');
           doc.setTextColor(130);
           doc.text(
-            footerNote.trim() || 'CheckIT - Sistema Inteligente de Control de Equipos',
+            footerNote.trim() || 'CheckIT - Sistema de Control de Equipos de Cómputo',
             data.settings.margin.left + (logoFooterDataUrl ? 11 : 0),
             footerY
           );
@@ -755,7 +759,9 @@ export default function Resumen() {
           <div className="px-5 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2 font-bold text-gray-900 dark:text-gray-100 text-sm">
             <FileBarChart2 size={16} className="text-brand-600 dark:text-brand-400" />
             <span>Movimientos por tipo</span>
-            <span className="ml-auto text-[11px] font-medium text-gray-600 dark:text-gray-400">{periodoActual?.etiqueta}</span>
+            <span className="ml-auto text-[11px] font-medium text-gray-600 dark:text-gray-400">
+              {periodoActual?.etiqueta}
+            </span>
           </div>
           <div className="p-4 space-y-2.5">
             <div className="flex items-center justify-between text-xs">
@@ -801,7 +807,8 @@ export default function Resumen() {
             </select>
           </div>
           <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-            {plural(registrosFiltrados.length, 'registro encontrado', 'registros encontrados')} en el período
+            {plural(registrosFiltrados.length, 'registro encontrado', 'registros encontrados')} en
+            el período
           </span>
         </div>
 
