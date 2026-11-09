@@ -151,11 +151,15 @@ function seed() {
       .forEach(m => insertMarca.run(m));
   }
 
-  const countAccesorios = db.prepare('SELECT COUNT(*) c FROM accesorios').get().c;
-  if (countAccesorios === 0) {
-    const insertAccesorio = db.prepare('INSERT INTO accesorios (nombre_accesorio) VALUES (?)');
-    ['Mouse', 'Cargador', 'Teclado', 'Pantalla'].forEach((a) => insertAccesorio.run(a));
-  }
+  // Se revisa en cada arranque, no solo con la base vacía: así las bases que
+  // ya existían reciben los accesorios agregados después (Base refrigerante y
+  // Diademas, v6.8). Solo inserta los que faltan: un INSERT OR IGNORE
+  // gastaría un número de id en cada arranque aunque no agregara nada.
+  const insertAccesorio = db.prepare(`
+    INSERT INTO accesorios (nombre_accesorio)
+    SELECT ? WHERE NOT EXISTS (SELECT 1 FROM accesorios WHERE nombre_accesorio = ?)
+  `);
+  ['Mouse', 'Cargador', 'Teclado', 'Pantalla', 'Base refrigerante', 'Diademas'].forEach((a) => insertAccesorio.run(a, a));
 
   const countUsers = db.prepare('SELECT COUNT(*) c FROM usuarios').get().c;
   if (countUsers === 0) {

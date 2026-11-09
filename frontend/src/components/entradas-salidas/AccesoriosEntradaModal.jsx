@@ -1,7 +1,8 @@
 // Ventana que aparece antes de registrar una ENTRADA: el vigilante indica qué
 // accesorios trae la persona junto con el computador (selección múltiple).
 // Es opcional: si solo trae el computador, basta con pulsar "Aceptar".
-// Las salidas no pasan por aquí, para no frenar la fila en portería.
+// La salida usa otra ventana (AccesoriosSalidaModal), que muestra lo que se
+// registró aquí para comprobarlo antes de registrarla.
 import { useEffect, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import api from '../../api/client';

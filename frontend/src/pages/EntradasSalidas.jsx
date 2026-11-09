@@ -20,6 +20,7 @@ import AvisoPrivacidad from '../components/AvisoPrivacidad';
 import EquiposDentroModal from '../components/entradas-salidas/EquiposDentroModal';
 import AlertaCierresAutomaticos from '../components/entradas-salidas/AlertaCierresAutomaticos';
 import AccesoriosEntradaModal from '../components/entradas-salidas/AccesoriosEntradaModal';
+import AccesoriosSalidaModal from '../components/entradas-salidas/AccesoriosSalidaModal';
 
 // Agrupación que ordena el equipo recién escaneado al inicio de la tabla
 function agruparMovimientos(logs) {
@@ -74,6 +75,9 @@ export default function ControlAccesos() {
   const [alertaCierresOpen, setAlertaCierresOpen] = useState(false);
   // Entrada a la espera de que se indiquen los accesorios: { equipo, origen }.
   const [entradaPendiente, setEntradaPendiente] = useState(null);
+  // Salida a la espera de confirmar los accesorios de la entrada:
+  // { equipo, accesorios, fechaEntrada, origen }.
+  const [salidaPendiente, setSalidaPendiente] = useState(null);
   const [recientes, setRecientes] = useState([]);
   const [searching, setSearching] = useState(false);
   const [registrando, setRegistrando] = useState(false);
@@ -167,20 +171,31 @@ export default function ControlAccesos() {
   // /registros/escanear), que decide entrada o salida y devuelve el equipo,
   // su estado, los contadores y los movimientos recientes ya actualizados.
   // origen: 'camara' | 'lector' (pistola USB/Bluetooth) | 'manual'.
-  // Si le toca entrada, el servidor no registra hasta recibir los accesorios
-  // (lista de ids, vacía si solo trae el computador): se abre la ventana y al
-  // aceptar se vuelve a llamar a esta función con ellos.
-  const escanear = async (codigo, origen, accesorios) => {
+  // El servidor no registra en el primer paso:
+  // - Entrada: espera los accesorios (lista de ids, vacía si solo trae el
+  //   computador). Se abre la ventana y al aceptar se vuelve a llamar a esta
+  //   función con ellos.
+  // - Salida: devuelve los accesorios con que entró el equipo. Se muestran y
+  //   al aceptar se vuelve a llamar con confirmaSalida.
+  const escanear = async (codigo, origen, accesorios, confirmaSalida) => {
     if (!codigo?.trim()) return;
     setScannerOpen(false);
     setSerialQuery('');
     empezarEspera();
     try {
-      const { data } = await api.post('/registros/escanear', { codigo: codigo.trim(), accesorios });
+      const { data } = await api.post('/registros/escanear', {
+        codigo: codigo.trim(),
+        accesorios,
+        ...(confirmaSalida ? { confirmaSalida: true } : {}),
+      });
       setEquipo(data.equipo);
       setEstadoInfo(data.estado);
       if (data.requiereAccesorios) {
         setEntradaPendiente({ equipo: data.equipo, origen });
+        return;
+      }
+      if (data.requiereConfirmacionSalida) {
+        setSalidaPendiente({ equipo: data.equipo, accesorios: data.accesoriosEntrada, fechaEntrada: data.fechaEntrada, origen });
         return;
       }
       setRecientes(data.recientes);
@@ -215,7 +230,7 @@ export default function ControlAccesos() {
   // ventana de la cámara está abierta, que tiene su propio campo manual).
   // Con la lista de "Equipos Dentro" abierta tampoco se registra: la pistola
   // escribe en su buscador, útil para ubicar un equipo en la lista.
-  useLectorCodigos((codigo) => escanear(codigo, 'lector'), { activo: !scannerOpen && !dentroOpen && !alertaCierresOpen && !entradaPendiente });
+  useLectorCodigos((codigo) => escanear(codigo, 'lector'), { activo: !scannerOpen && !dentroOpen && !alertaCierresOpen && !entradaPendiente && !salidaPendiente });
 
   const aceptarEntrada = async (accesorios) => {
     const { equipo: equipoPendiente, origen } = entradaPendiente;
@@ -227,6 +242,18 @@ export default function ControlAccesos() {
     const origen = entradaPendiente?.origen;
     setEntradaPendiente(null);
     // Con la cámara se sigue con el siguiente equipo, igual que tras registrar.
+    if (origen === 'camara') setTimeout(() => setScannerOpen(true), 600);
+  };
+
+  const aceptarSalida = async () => {
+    const { equipo: equipoPendiente, origen } = salidaPendiente;
+    await escanear(equipoPendiente.serial, origen, undefined, true);
+    setSalidaPendiente(null);
+  };
+
+  const cancelarSalida = () => {
+    const origen = salidaPendiente?.origen;
+    setSalidaPendiente(null);
     if (origen === 'camara') setTimeout(() => setScannerOpen(true), 600);
   };
 
@@ -365,6 +392,13 @@ export default function ControlAccesos() {
         enviando={registrando}
         onAceptar={aceptarEntrada}
         onCancelar={cancelarEntrada}
+      />
+
+      <AccesoriosSalidaModal
+        salida={salidaPendiente}
+        enviando={registrando}
+        onAceptar={aceptarSalida}
+        onCancelar={cancelarSalida}
       />
 
       <QRScannerModal open={scannerOpen} onClose={() => setScannerOpen(false)} onResult={(codigo) => escanear(codigo, 'camara')} />
