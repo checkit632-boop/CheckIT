@@ -241,6 +241,12 @@ router.post('/login/codigo', limiteCodigo, asyncHandler((req, res) => {
   const resultado = validarCodigo(id_usuario, 'login_2fa', codigo);
   if (!resultado.ok) return res.status(resultado.status || 401).json({ error: resultado.error });
 
+  // La cuenta pudo inactivarse entre la contraseña y el código: el código
+  // ya quedó usado, pero no se emite la sesión.
+  if (!user.estado) {
+    return res.status(401).json({ error: 'Tu cuenta fue desactivada. Contacta al administrador.' });
+  }
+
   db.prepare(`INSERT INTO auditoria (id_usuario, accion, tabla_afectada, descripcion) VALUES (?, 'LOGIN', 'usuarios', ?)`)
     .run(user.id_usuario, `Inicio de sesión de ${user.usuario} (verificado con tercer factor)`);
 
@@ -252,7 +258,7 @@ router.post('/login/codigo', limiteCodigo, asyncHandler((req, res) => {
 router.post('/login/reenviar', limiteReenvio, asyncHandler((req, res) => {
   const { id_usuario } = req.body;
   const user = db.prepare('SELECT * FROM usuarios WHERE id_usuario = ?').get(id_usuario);
-  if (!user || !user.correo) return res.status(404).json({ error: 'No se puede reenviar el código' });
+  if (!user || !user.correo || !user.estado) return res.status(404).json({ error: 'No se puede reenviar el código' });
 
   const codigo = generarCodigo();
   guardarCodigo(user.id_usuario, 'login_2fa', codigo);

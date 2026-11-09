@@ -1,16 +1,28 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useState } from 'react';
-import { Menu } from 'lucide-react';
+import { lazy, Suspense, useState } from 'react';
+import { Menu, LoaderCircle } from 'lucide-react';
 
 import Login from './pages/Login';
-import ForgotPassword from './pages/ForgotPassword';
-import Dashboard from './pages/Dashboard';
-import Equipos from './pages/Equipos';
 import EntradasSalidas from './pages/EntradasSalidas';
-import Resumen from './pages/Resumen';
-import Usuarios from './pages/Usuarios';
 import Sidebar from './components/Sidebar';
 import ProtectedRoute from './components/ProtectedRoute';
+
+// Login y Control de Accesos (lo que abre la portería) se cargan de entrada.
+// Las demás pantallas se descargan la primera vez que se visitan, para que
+// el inicio no espere el código de Historial, Usuarios o el Resumen general.
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Equipos = lazy(() => import('./pages/Equipos'));
+const Resumen = lazy(() => import('./pages/Resumen'));
+const Usuarios = lazy(() => import('./pages/Usuarios'));
+
+function Cargando() {
+  return (
+    <div className="flex-1 flex items-center justify-center">
+      <LoaderCircle className="animate-spin text-brand-600 dark:text-brand-400" size={36} aria-label="Cargando" />
+    </div>
+  );
+}
 
 function AppLayout({ children }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -36,7 +48,7 @@ function AppLayout({ children }) {
         </header>
 
         <main className="flex-1 flex flex-col min-h-0 overflow-hidden p-4 lg:p-5">
-          {children}
+          <Suspense fallback={<Cargando />}>{children}</Suspense>
         </main>
       </div>
     </div>
@@ -47,7 +59,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/forgot-password" element={<Suspense fallback={<Cargando />}><ForgotPassword /></Suspense>} />
 
       <Route path="/dashboard" element={
         <ProtectedRoute superAdminOnly>

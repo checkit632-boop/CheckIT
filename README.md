@@ -266,6 +266,56 @@ npm run backup
 Los archivos de respaldo contienen datos personales: las carpetas de destino
 deben tener acceso restringido al personal autorizado.
 
+Cada copia se revisa con `PRAGMA quick_check` antes de repartirla a los
+destinos: si saliera dañada, no se guarda ni reemplaza a las buenas.
+
+### 4. Tareas automáticas, avisos y contingencia (v6.11)
+
+- **Si el PC estaba apagado.** El cierre de las 11:59 p. m. y el respaldo de
+  las 2:00 a. m. solo corren con la API encendida. Al arrancar, la API revisa
+  si quedó pendiente el cierre de la noche anterior (lo ejecuta solo sobre las
+  entradas de días anteriores, nunca sobre las de hoy) y si el último respaldo
+  tiene más de 26 horas (genera uno). Ambos quedan en la consola y el cierre
+  en la auditoría, con la nota "recuperado al iniciar".
+- **Hora de las tareas.** Se calcula con `ZONA_HORARIA_OFFSET` (Colombia,
+  UTC-5) y no con la zona horaria de Windows.
+- **Equipos que pasan la noche dentro (regla definida).** El cierre registra
+  su salida. Si al día siguiente el propietario sale con un equipo que se
+  quedó en el centro, la lectura aparece como entrada; es intencional: la
+  alerta que se ve al iniciar sesión le muestra al vigilante qué equipos
+  quedaron dentro y quién los dejó.
+- **Avisos por correo.** Si un respaldo falla, si falla en uno de los dos
+  destinos (por ejemplo, el disco USB desconectado) o si falla el cierre
+  diario, se envía un correo a los Super Administradores activos, además del
+  mensaje en `api.log`. Requiere el SMTP configurado.
+- **Ingreso de contingencia sin correo.** Si el correo no funciona, nadie
+  recibe el código de acceso. En el PC de CheckIT, después de que la persona
+  escriba su usuario y contraseña, un administrador ejecuta en `backend`:
+
+  ```bash
+  npm run codigo -- NOMBRE_DE_USUARIO
+  ```
+
+  El código aparece en la consola, vence en 5 minutos, reemplaza al enviado
+  por correo y queda en la auditoría. Solo funciona con acceso a la consola y
+  a la carpeta `backend` del PC, que ya permiten leer la base y el `.env`, así
+  que no abre una puerta nueva.
+
+### 5. Pruebas automáticas
+
+```bash
+cd backend
+npm test
+```
+
+Levantan la API real con una base **temporal** (variable `CHECKIT_DB_PATH`) y
+datos ficticios, en otro puerto: nunca tocan `backend/db/checkit.db` ni envían
+correos. Prueban el inicio de sesión con código, los roles, la entrada y la
+salida con accesorios, las lecturas repetidas, el código de contingencia, la
+cuenta inactivada a mitad del ingreso, el respaldo al arrancar y el cierre
+recuperado. Tardan cerca de 20 segundos. Reemplazan a
+`backend/scripts/run_tests.sh`, que quedó desactualizado.
+
 ## Modelo de datos
 
 El esquema que ejecuta el servidor es `backend/db/schema.sql` y es la única

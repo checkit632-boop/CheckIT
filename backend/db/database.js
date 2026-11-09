@@ -4,7 +4,10 @@ const crypto = require('crypto');
 const Database = require('better-sqlite3');
 const bcrypt = require('bcryptjs');
 
-const DB_PATH = path.join(__dirname, 'checkit.db');
+const DB_PATH = require('./ruta');
+// Carpeta de archivos locales (contraseña inicial): backend/ con la base por
+// defecto; con CHECKIT_DB_PATH, la carpeta superior a la de esa base.
+const CARPETA_LOCAL = path.join(path.dirname(DB_PATH), '..');
 const db = new Database(DB_PATH);
 db.pragma('journal_mode = WAL');
 
@@ -94,7 +97,7 @@ function migrarFechasAUtc() {
 
   if (pendientes > 0) {
     // Copia completa antes de tocar datos (queda en db/, ignorada por Git).
-    const respaldo = path.join(__dirname, `checkit.antes-de-utc-${Date.now()}.db`);
+    const respaldo = path.join(path.dirname(DB_PATH), `checkit.antes-de-utc-${Date.now()}.db`);
     db.exec(`VACUUM INTO '${respaldo.replace(/'/g, "''")}'`);
     console.log(`💾 Copia de seguridad previa a la migración de fechas: ${respaldo}`);
   }
@@ -180,7 +183,7 @@ function seed() {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
     `).run('admin', 'Admin', 'CheckIT', 'checkit632@gmail.com', '3000000000', cedulaId || null, '1000000000', hash, superRolId);
 
-    const rutaPassword = path.join(__dirname, '../.super_admin_password_inicial.txt');
+    const rutaPassword = path.join(CARPETA_LOCAL, '.super_admin_password_inicial.txt');
     fs.writeFileSync(
       rutaPassword,
       `Usuario: admin\nContraseña inicial: ${passwordInicial}\n\n` +

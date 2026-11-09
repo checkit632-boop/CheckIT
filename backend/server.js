@@ -15,8 +15,8 @@ const dashboardRoutes = require('./routes/dashboard');
 // Al importarla se crea/migra el esquema; aquí se usa además para la
 // comprobación de /api/health.
 const db = require('./db/database');
-const { ejecutarRespaldo, obtenerDestinos } = require('./utils/backup');
-const { ejecutarReinicioOperativo } = require('./utils/reinicio');
+const { obtenerDestinos } = require('./utils/backup');
+const { iniciarTareasProgramadas } = require('./utils/tareas');
 const errorHandler = require('./middleware/errorHandler');
 
 
@@ -54,6 +54,21 @@ app.use(cors({ origin: ORIGENES_PERMITIDOS }));
 // Resumen y las exportaciones.
 app.use(compression());
 app.use(express.json());
+
+// Encabezados de seguridad básicos para la API y la interfaz: el navegador
+// no adivina tipos de archivo, ninguna otra página puede mostrar CheckIT
+// dentro de un marco (clickjacking) y no se envía la dirección de origen a
+// sitios externos. Solo la cámara del propio sitio queda permitida.
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+  res.set({
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'no-referrer',
+    'Permissions-Policy': 'camera=(self), microphone=(), geolocation=(self)',
+  });
+  next();
+});
 
 // Estado real del servicio: además de responder, comprueba que la base de
 // datos atienda una consulta. Lo usa la barra "Estado del sistema" de
@@ -102,28 +117,12 @@ if (sirveInterfaz) {
 // H-06: manejador de errores centralizado (siempre después de las rutas).
 app.use(errorHandler);
 
-// ── Reinicio operativo diario (11:59 p.m.) ─────────────────────
-// La lógica vive en utils/reinicio.js. Este bloque es solo el disparador
-// automático: si el backend está corriendo justo a esa hora, se ejecuta
-// solo. Si prefieres que corra SIN depender de que el backend esté
-// encendido, usa una tarea programada de Windows con:
-//   node scripts/reinicio.js
-// (ver README para el paso a paso). Ambas formas conviven sin problema.
-let ultimoReinicio = null;
-setInterval(() => {
-  const ahora = new Date();
-  const hoyStr = ahora.toISOString().slice(0, 10);
-  if (ahora.getHours() === 23 && ahora.getMinutes() === 59 && ultimoReinicio !== hoyStr) {
-    ultimoReinicio = hoyStr;
-    try {
-      const cerrados = ejecutarReinicioOperativo();
-      console.log(`🔄 Reinicio operativo diario ejecutado (${hoyStr} 23:59) — ${cerrados} equipo(s) cerrado(s) automáticamente`);
-    } catch (err) {
-      console.error('Error registrando el reinicio operativo:', err.message);
-    }
-  }
-}, 30000);
-
+// ── Tareas automáticas ─────────────────────────────────────────
+// Cierre diario (11:59 p. m.) y respaldo diario (BACKUP_HORA), con
+// recuperación al arrancar si el PC estuvo apagado a esa hora y aviso por
+// correo si fallan. La lógica está en utils/tareas.js; el cierre también se
+// puede ejecutar a mano con "npm run reinicio" y el respaldo con
+// "npm run backup".
 const alIniciar = () => {
   console.log(`🚀 CheckIT API escuchando en http://localhost:${PORT}${HOST ? ` (solo ${HOST})` : ''}`);
   console.log(sirveInterfaz
@@ -134,28 +133,20 @@ const alIniciar = () => {
     console.warn('⚠ Respaldo automático desactivado: configura BACKUP_DIR_1 (y BACKUP_DIR_2) en backend/.env');
   }
 };
-if (HOST) app.listen(PORT, HOST, alIniciar);
-else app.listen(PORT, alIniciar);
+const servidor = HOST ? app.listen(PORT, HOST, alIniciar) : app.listen(PORT, alIniciar);
+iniciarTareasProgramadas();
 
-// ── Respaldo automático diario de la base de datos ─────────────
-// Hora configurable con BACKUP_HORA en backend/.env (formato "HH:MM",
-// 24 horas). Por defecto 02:00 a.m., pensado para que no coincida con el
-// reinicio operativo de las 11:59 p.m. ni con el horario de uso normal.
-// Guarda la copia en BACKUP_DIR_1 y, si está configurado, también en
-// BACKUP_DIR_2 — idealmente unidades/discos distintos al del proyecto.
-const [BACKUP_HORA_H, BACKUP_HORA_M] = (process.env.BACKUP_HORA || '02:00').split(':').map(Number);
-
-let ultimoRespaldo = null;
-setInterval(async () => {
-  const ahora = new Date();
-  const hoyStr = ahora.toISOString().slice(0, 10);
-  if (ahora.getHours() === BACKUP_HORA_H && ahora.getMinutes() === BACKUP_HORA_M && ultimoRespaldo !== hoyStr) {
-    ultimoRespaldo = hoyStr;
-    const resultado = await ejecutarRespaldo().catch((err) => ({ ok: false, error: err.message }));
-    if (resultado.ok) {
-      console.log(`💾 Respaldo automático "${resultado.archivo}" guardado en: ${resultado.destinos.join(', ')}`);
-    } else {
-      console.error('✖ Falló el respaldo automático:', resultado.error);
-    }
-  }
-}, 30000);
+// Cierre ordenado (Ctrl + C en la consola o señal de terminación): deja de
+// aceptar peticiones y cierra la base, lo que vuelca el archivo -wal al .db.
+function apagar(senal) {
+  console.log(`\n⏹ CheckIT se detiene (${senal}).`);
+  const terminar = () => {
+    try { db.close(); } catch { /* ya cerrada */ }
+    process.exit(0);
+  };
+  servidor.close(terminar);
+  // Si un navegador mantiene una conexión abierta, no se espera más de 3 s.
+  setTimeout(terminar, 3000).unref();
+}
+process.on('SIGINT', () => apagar('SIGINT'));
+process.on('SIGTERM', () => apagar('SIGTERM'));
