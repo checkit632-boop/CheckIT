@@ -167,9 +167,17 @@ Para producción:
 npm run build
 ```
 
-Esto genera la carpeta `dist/` lista para servir con cualquier servidor
-estático (Nginx, Apache, `serve`, etc.). Recuerda apuntar las peticiones
-`/api` hacia tu backend en producción (proxy inverso o variable de entorno).
+Esto genera la carpeta `dist/`. Si existe, el backend la entrega en su mismo
+puerto: con `npm start` en `backend`, CheckIT se abre en
+`http://localhost:4000`, sin otro servidor web.
+
+**Instalación en un solo equipo** (servidor y portería en el mismo PC): pon
+`HOST=127.0.0.1` y `NODE_ENV=production` en `backend/.env`. Así la API solo
+responde en ese equipo y nadie puede entrar desde la red. Al ser `localhost`,
+el navegador lo trata como sitio seguro, de modo que no hace falta
+certificado HTTPS. Si más adelante otros puestos deben usar CheckIT, deja
+`HOST` vacío y publica la interfaz con HTTPS (por ejemplo, con un proxy
+inverso), porque la cámara del navegador lo exige fuera de `localhost`.
 
 ### 3. Respaldo de la base de datos
 
