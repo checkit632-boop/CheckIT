@@ -112,4 +112,34 @@ async function enviarCodigo({ correo, nombre, codigo, asunto, intro, minutos = 1
   return { enviado: false, simulado: true };
 }
 
-module.exports = { enviarCodigo, SMTP_CONFIGURADO, EMPRESA_NOMBRE };
+// Aviso de operación (respaldo o cierre diario fallido) para los
+// responsables del sistema. Devuelve true si se entregó por correo.
+const escapar = (t) => String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+async function enviarAviso({ correo, nombre, asunto, lineas }) {
+  if (!transporter || !correo) return false;
+  const html = `
+  <div style="background:#fff7ed; padding:24px 16px; font-family: Arial, Helvetica, sans-serif;">
+    <div style="max-width:520px; margin:0 auto; background:#ffffff; border-radius:16px; border:1px solid #fed7aa; padding:24px 26px;">
+      <div style="color:#b45309; font-size:18px; font-weight:bold; margin-bottom:12px;">CheckIT · ${escapar(asunto)}</div>
+      <p style="margin:0 0 12px; color:#111827; font-size:14px;">Hola ${escapar(nombre)},</p>
+      ${lineas.map((l) => `<p style="margin:0 0 10px; color:#374151; font-size:14px; line-height:1.5;">${escapar(l)}</p>`).join('')}
+      <p style="margin:16px 0 0; color:#6b7280; font-size:12px;">Mensaje automático del PC de CheckIT · ${escapar(EMPRESA_NOMBRE)}</p>
+    </div>
+  </div>`;
+  try {
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM || `CheckIT <no-responder@${EMPRESA_NOMBRE.toLowerCase()}.co>`,
+      to: correo,
+      subject: `CheckIT: ${asunto}`,
+      html,
+      text: lineas.join('\n'),
+    });
+    return true;
+  } catch (err) {
+    console.error('✖ No se pudo enviar el aviso por correo:', err.message);
+    return false;
+  }
+}
+
+module.exports = { enviarCodigo, enviarAviso, SMTP_CONFIGURADO, EMPRESA_NOMBRE };

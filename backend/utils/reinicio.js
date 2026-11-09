@@ -20,7 +20,12 @@
 // (el primer run ya los cerró todos), así que simplemente no hace nada.
 const db = require('../db/database');
 
-function ejecutarReinicioOperativo() {
+// opciones.antesDe (UTC, 'AAAA-MM-DD HH:MM:SS'): solo cierra equipos cuya
+// entrada sea anterior a ese momento. Lo usa la recuperación al arrancar
+// (utils/tareas.js) para cerrar lo que quedó de la noche anterior sin tocar
+// las entradas que ya se registraron hoy.
+// opciones.motivo: texto que se agrega a la auditoría.
+function ejecutarReinicioOperativo({ antesDe = null, motivo = '' } = {}) {
   const idSistema = db.prepare("SELECT id_usuario FROM usuarios WHERE usuario = 'sistema'").get()?.id_usuario;
   const idSalida = db.prepare("SELECT id_tipo_movimiento FROM tipos_movimiento WHERE nombre_movimiento = 'Salida'").get()?.id_tipo_movimiento;
 
@@ -40,11 +45,12 @@ function ejecutarReinicioOperativo() {
         JOIN registros r ON r.id_registro = (SELECT MAX(id_registro) FROM registros WHERE id_equipo = e.id_equipo)
         JOIN tipos_movimiento tm ON tm.id_tipo_movimiento = r.id_tipo_movimiento
         WHERE tm.nombre_movimiento = 'Entrada'
-      `).run(idSistema, idSalida).changes;
+        ${antesDe ? 'AND r.fecha_hora < ?' : ''}
+      `).run(idSistema, idSalida, ...(antesDe ? [antesDe] : [])).changes;
     }
 
     db.prepare(`INSERT INTO auditoria (id_usuario, accion, tabla_afectada, descripcion) VALUES (NULL, 'SISTEMA', 'registros', ?)`)
-      .run(`Reinicio operativo diario — se registraron ${cerrados} salida(s) automática(s) (equipos que seguían "Adentro"). No se eliminó ningún dato.`);
+      .run(`Reinicio operativo diario${motivo ? ` (${motivo})` : ''} — se registraron ${cerrados} salida(s) automática(s) (equipos que seguían "Adentro"). No se eliminó ningún dato.`);
     return cerrados;
   });
 

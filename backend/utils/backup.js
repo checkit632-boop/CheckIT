@@ -16,7 +16,7 @@ const fs = require('fs');
 const os = require('os');
 const Database = require('better-sqlite3');
 
-const DB_PATH = path.join(__dirname, '../db/checkit.db');
+const DB_PATH = require('../db/ruta');
 
 function obtenerDestinos() {
   return [process.env.BACKUP_DIR_1, process.env.BACKUP_DIR_2]
@@ -68,6 +68,20 @@ async function ejecutarRespaldo() {
     db.close();
   }
 
+  // La copia se revisa antes de repartirla: una copia dañada no debe
+  // reemplazar a las buenas al aplicar la retención.
+  let revision;
+  const copia = new Database(rutaTemporal, { readonly: true });
+  try {
+    revision = copia.pragma('quick_check', { simple: true });
+  } finally {
+    copia.close();
+  }
+  if (revision !== 'ok') {
+    fs.unlinkSync(rutaTemporal);
+    return { ok: false, error: `La copia generada no pasó la revisión de integridad (${revision}).` };
+  }
+
   const retencion = Number(process.env.BACKUP_RETENCION) || 14;
   const guardadosEn = [];
   const fallidosEn = [];
@@ -93,4 +107,22 @@ async function ejecutarRespaldo() {
   return { ok: true, archivo: nombreArchivo, destinos: guardadosEn, fallidosEn };
 }
 
-module.exports = { ejecutarRespaldo, obtenerDestinos };
+// Fecha (ms) del respaldo más reciente en cualquiera de los destinos, o null
+// si no hay ninguno. La usa la recuperación al arrancar (utils/tareas.js).
+function ultimoRespaldo() {
+  let ultimo = null;
+  for (const carpeta of obtenerDestinos()) {
+    try {
+      for (const f of fs.readdirSync(carpeta)) {
+        if (!f.startsWith('checkit_backup_') || !f.endsWith('.db')) continue;
+        const t = fs.statSync(path.join(carpeta, f)).mtimeMs;
+        if (ultimo === null || t > ultimo) ultimo = t;
+      }
+    } catch {
+      // carpeta inexistente o desconectada: se ignora aquí
+    }
+  }
+  return ultimo;
+}
+
+module.exports = { ejecutarRespaldo, obtenerDestinos, ultimoRespaldo };

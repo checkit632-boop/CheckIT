@@ -12,10 +12,10 @@ import {
   Upload,
   Table,
 } from 'lucide-react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import ExcelJS from 'exceljs';
+// jsPDF, jspdf-autotable y ExcelJS pesan más de 1 MB: se cargan solo al
+// exportar (import dinámico), no al abrir el Historial.
 import api from '../api/client';
+import { reducirImagen } from '../utils/imagen';
 import {
   PERIODOS_HISTORIAL,
   PERIODO_POR_DEFECTO,
@@ -248,6 +248,7 @@ export default function Resumen() {
     ];
     const numCols = headers.length;
 
+    const { default: ExcelJS } = await import('exceljs');
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'CheckIT';
     workbook.created = new Date();
@@ -394,7 +395,7 @@ export default function Resumen() {
         reader.onloadend = () => resolve(reader.result);
         reader.onerror = reject;
         reader.readAsDataURL(blob);
-      });
+      }).then((dataUrl) => reducirImagen(dataUrl, 160));
     } catch (err) {
       return null;
     }
@@ -487,6 +488,10 @@ export default function Resumen() {
         return;
       }
 
+      const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+        import('jspdf'),
+        import('jspdf-autotable'),
+      ]);
       const doc = new jsPDF('landscape');
       let currentY = 15;
       const marginX = 14;
@@ -586,7 +591,9 @@ export default function Resumen() {
 
           if (logoFooterDataUrl) {
             try {
-              doc.addImage(logoFooterDataUrl, 'PNG', data.settings.margin.left, footerY - 6, 8, 8);
+              // El alias hace que el logo se guarde una sola vez en el PDF,
+              // aunque se dibuje en el pie de cada página.
+              doc.addImage(logoFooterDataUrl, 'PNG', data.settings.margin.left, footerY - 6, 8, 8, 'logo-pie', 'FAST');
             } catch (e) {
               /* ignore */
             }
@@ -1097,7 +1104,8 @@ export default function Resumen() {
                               const file = e.target.files[0];
                               if (file) {
                                 const reader = new FileReader();
-                                reader.onloadend = () => setLogoUrl(reader.result);
+                                // Se reduce al subirlo: en el reporte mide unos 2,5 cm.
+                                reader.onloadend = () => reducirImagen(reader.result, 400).then(setLogoUrl);
                                 reader.readAsDataURL(file);
                               }
                             }}

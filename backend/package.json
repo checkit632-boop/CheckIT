@@ -11,6 +11,8 @@
     "backup": "node scripts/backup.js",
     "reinicio": "node scripts/reinicio.js",
     "seed": "node scripts/seed.js",
+    "codigo": "node scripts/codigo-contingencia.js",
+    "test": "node --test --test-concurrency=1",
     "sql:sync": "node scripts/sync-sql.js",
     "sql:check": "node scripts/sync-sql.js --check"
   },
@@ -23,7 +25,7 @@
     "express": "^4.19.2",
     "express-rate-limit": "^7.5.1",
     "jsonwebtoken": "^9.0.2",
-    "nodemailer": "^6.9.14"
+    "nodemailer": "^10.4.0"
   },
   "devDependencies": {
     "eslint": "^8.57.0",
