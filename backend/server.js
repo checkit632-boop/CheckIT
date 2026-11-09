@@ -1,4 +1,6 @@
 require('dotenv').config();
+const path = require('path');
+const fs = require('fs');
 const express = require('express');
 const cors = require('cors');
 const compression = require('compression');
@@ -33,6 +35,10 @@ const app = express();
 // en producción). Configurable con TRUST_PROXY en backend/.env.
 app.set('trust proxy', process.env.TRUST_PROXY || 'loopback');
 const PORT = process.env.PORT || 4000;
+// Dirección en la que escucha. Vacía: todas las interfaces de red (como
+// antes). Con HOST=127.0.0.1 solo responde en el mismo equipo, que es lo
+// indicado cuando CheckIT se instala y se usa en un único PC.
+const HOST = process.env.HOST?.trim() || '';
 
 // CORS: solo los orígenes de la lista pueden leer las respuestas de la API
 // desde otra página. Antes estaba abierto a cualquier sitio. El frontend
@@ -70,6 +76,29 @@ app.use('/api/registros', registrosRoutes);
 app.use('/api/catalogos', catalogosRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 
+// Una ruta /api inexistente responde un 404 en JSON. Además evita que caiga
+// en la interfaz de abajo, que devolvería la página en lugar de un error.
+app.use('/api', (req, res) => res.status(404).json({ error: 'Ruta no encontrada.' }));
+
+// Interfaz compilada (frontend/dist, generada con `npm run build`). Si existe,
+// la API la entrega en el mismo puerto: así basta un solo programa, sin un
+// servidor web aparte. En desarrollo se sigue usando Vite (puerto 5173).
+const DIST = path.join(__dirname, '..', 'frontend', 'dist');
+const INDEX = path.join(DIST, 'index.html');
+const sirveInterfaz = fs.existsSync(INDEX);
+if (sirveInterfaz) {
+  // Los archivos de assets/ llevan un código en el nombre que cambia con
+  // cada compilación, así que el navegador puede guardarlos por un año.
+  app.use('/assets', express.static(path.join(DIST, 'assets'), { immutable: true, maxAge: '1y' }));
+  app.use(express.static(DIST, { index: false, maxAge: '1h' }));
+  // Cualquier otra dirección (/login, /resumen...) es una ruta de React:
+  // se responde la página principal sin caché, para que tome cada versión.
+  app.get('*', (req, res) => {
+    res.set('Cache-Control', 'no-cache');
+    res.sendFile(INDEX);
+  });
+}
+
 // H-06: manejador de errores centralizado (siempre después de las rutas).
 app.use(errorHandler);
 
@@ -95,13 +124,18 @@ setInterval(() => {
   }
 }, 30000);
 
-app.listen(PORT, () => {
-  console.log(`🚀 CheckIT API escuchando en http://localhost:${PORT}`);
+const alIniciar = () => {
+  console.log(`🚀 CheckIT API escuchando en http://localhost:${PORT}${HOST ? ` (solo ${HOST})` : ''}`);
+  console.log(sirveInterfaz
+    ? `🖥  Interfaz disponible en http://localhost:${PORT}`
+    : '   Sin interfaz compilada: ejecuta "npm run build" en frontend para abrir CheckIT desde este puerto.');
 
   if (obtenerDestinos().length === 0) {
     console.warn('⚠ Respaldo automático desactivado: configura BACKUP_DIR_1 (y BACKUP_DIR_2) en backend/.env');
   }
-});
+};
+if (HOST) app.listen(PORT, HOST, alIniciar);
+else app.listen(PORT, alIniciar);
 
 // ── Respaldo automático diario de la base de datos ─────────────
 // Hora configurable con BACKUP_HORA en backend/.env (formato "HH:MM",
