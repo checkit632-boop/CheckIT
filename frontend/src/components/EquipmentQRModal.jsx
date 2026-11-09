@@ -63,6 +63,10 @@ function componerImagenDescarga({ dataUrl, equipo }) {
   });
 }
 
+// El serial, la marca y el modelo los escribe un usuario: se escapan antes de
+// insertarlos en la página de impresión.
+const escaparHtml = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
 export default function EquipmentQRModal({ equipo, onClose }) {
   const [dataUrl, setDataUrl] = useState(null);
 
@@ -93,23 +97,47 @@ export default function EquipmentQRModal({ equipo, onClose }) {
     }
   };
 
-  const handlePrint = () => {
-    if (!dataUrl) return;
+  // Etiqueta para la impresora térmica del centro (Jaltech 838L, controlador
+  // 4Barcode 3B-365B) con rollo adhesivo de 48 × 48 mm. Todo en negro, sin
+  // logo ni bordes, y con medidas en milímetros: el QR mide 32 mm, más que el
+  // mínimo de 2 × 2 cm que lee bien la pistola.
+  const handlePrint = async () => {
+    if (!equipo) return;
+    // El QR de la etiqueta se genera aparte, en alta resolución y sin margen
+    // propio: la etiqueta ya deja el espacio blanco que el lector necesita.
+    let qrEtiqueta;
+    try {
+      qrEtiqueta = await QRCode.toDataURL(equipo.codigo_qr || equipo.serial, { width: 600, margin: 0, color: { dark: '#000000', light: '#ffffff' } });
+    } catch {
+      return;
+    }
+    const marcaModelo = [equipo.nombre_marca, equipo.modelo].filter(Boolean).join(' ');
+    // El serial se imprime completo: con más caracteres, letra más pequeña
+    // (y, si no alcanza, dos líneas) en lugar de cortarlo.
+    const largo = String(equipo.serial || '').length;
+    const tamSerial = largo <= 16 ? '8pt' : largo <= 22 ? '7pt' : '6pt';
     const win = window.open('', '_blank');
-    win.document.write(`
-      <html><head><title>QR ${equipo.serial}</title>
+    if (!win) return;
+    win.document.write(`<!doctype html>
+      <html><head><meta charset="utf-8"><title>Etiqueta ${escaparHtml(equipo.serial)}</title>
       <style>
-        body { font-family: Arial, sans-serif; display:flex; flex-direction:column; align-items:center; padding:2rem; }
-        img.logo { width:56px; height:56px; object-fit:contain; margin-bottom:.5rem; }
-        img.qr { border: 1px solid #e5e7eb; border-radius: 8px; }
-        p { margin-top: 1rem; font-size:.8rem; color:#6b7280; text-align:center; }
-        h3 { color: #0d6d32; margin:.25rem 0 .75rem; font-size:1.15rem; }
+        @page { size: 48mm 48mm; margin: 0; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 48mm; height: 48mm; background: #fff; color: #000; }
+        body { font-family: Arial, Helvetica, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; }
+        .titulo { font-size: 6.5pt; font-weight: bold; letter-spacing: .3pt; line-height: 1; margin-bottom: 1mm; }
+        img.qr { width: 32mm; height: 32mm; image-rendering: pixelated; }
+        .serial { font-size: ${tamSerial}; font-weight: bold; line-height: 1.1; margin-top: 1.2mm; max-width: 44mm; text-align: center; word-break: break-all; }
+        .equipo { font-size: 6pt; line-height: 1; margin-top: .8mm; max-width: 44mm; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       </style></head><body>
-      <img class="logo" src="/logo.png" onerror="this.style.display='none'" />
-      <h3>CheckIT — Computador</h3>
-      <img class="qr" src="${dataUrl}" width="220" height="220" />
-      <p>${equipo.nombre_marca} ${equipo.modelo || ''}<br/>Serial: <strong>${equipo.serial}</strong></p>
-      <script>window.onload=()=>{window.print();window.close();}</script>
+      <div class="titulo">CheckIT</div>
+      <img class="qr" src="${qrEtiqueta}" alt="" />
+      <div class="serial">${escaparHtml(equipo.serial)}</div>
+      ${marcaModelo ? `<div class="equipo">${escaparHtml(marcaModelo)}</div>` : ''}
+      <script>
+        window.onafterprint = () => window.close();
+        window.onload = () => window.print();
+      </script>
       </body></html>`);
     win.document.close();
   };
