@@ -30,7 +30,8 @@ function agruparMovimientos(logs) {
   const logsOrdenados = [...logs].sort((a, b) => (a.id_registro || 0) - (b.id_registro || 0));
 
   logsOrdenados.forEach((m) => {
-    const propietarioActual = `${m.persona_nombres || ''} ${m.persona_apellidos || ''}`.trim() || 'Sin asignar';
+    const propietarioActual =
+      `${m.persona_nombres || ''} ${m.persona_apellidos || ''}`.trim() || 'Sin asignar';
     const equipoInfo = `${m.nombre_marca || ''} ${m.modelo || ''}`.trim() || 'Equipo';
     const tipo = (m.nombre_movimiento || '').toLowerCase();
 
@@ -93,7 +94,9 @@ export default function ControlAccesos() {
       // siempre ve los de todos (el backend lo decide, no el frontend).
       const { data } = await api.get('/registros?limit=20&hoy=1&propios=1');
       setRecientes(data);
-    } catch (err) { /* silent */ }
+    } catch (err) {
+      /* silent */
+    }
   };
 
   const loadDashboardStats = async () => {
@@ -105,7 +108,7 @@ export default function ControlAccesos() {
       });
       setLastUpdate(new Date());
     } catch (err) {
-      console.error("Error al cargar datos del dashboard:", err);
+      console.error('Error al cargar datos del dashboard:', err);
     }
   };
 
@@ -195,16 +198,26 @@ export default function ControlAccesos() {
         return;
       }
       if (data.requiereConfirmacionSalida) {
-        setSalidaPendiente({ equipo: data.equipo, accesorios: data.accesoriosEntrada, fechaEntrada: data.fechaEntrada, origen });
+        setSalidaPendiente({
+          equipo: data.equipo,
+          accesorios: data.accesoriosEntrada,
+          fechaEntrada: data.fechaEntrada,
+          origen,
+        });
         return;
       }
       setRecientes(data.recientes);
-      setStats({ equipos: data.stats.misMovimientosHoy || 0, equiposDentro: data.stats.equiposDentro || 0 });
+      setStats({
+        equipos: data.stats.misMovimientosHoy || 0,
+        equiposDentro: data.stats.equiposDentro || 0,
+      });
       setLastUpdate(new Date());
 
       if (data.movimiento === 'Entrada') playEntrada();
       else playSalida();
-      showToast(`${data.movimiento} registrada — ${data.equipo.serial} — ${new Date().toLocaleTimeString('es-CO')}`);
+      showToast(
+        `${data.movimiento} registrada — ${data.equipo.serial} — ${new Date().toLocaleTimeString('es-CO')}`
+      );
 
       // Con la cámara se vuelve a abrir enseguida para el siguiente equipo;
       // el resultado queda visible en la tarjeta hasta el próximo escaneo.
@@ -230,7 +243,10 @@ export default function ControlAccesos() {
   // ventana de la cámara está abierta, que tiene su propio campo manual).
   // Con la lista de "Equipos Dentro" abierta tampoco se registra: la pistola
   // escribe en su buscador, útil para ubicar un equipo en la lista.
-  useLectorCodigos((codigo) => escanear(codigo, 'lector'), { activo: !scannerOpen && !dentroOpen && !alertaCierresOpen && !entradaPendiente && !salidaPendiente });
+  useLectorCodigos((codigo) => escanear(codigo, 'lector'), {
+    activo:
+      !scannerOpen && !dentroOpen && !alertaCierresOpen && !entradaPendiente && !salidaPendiente,
+  });
 
   const aceptarEntrada = async (accesorios) => {
     const { equipo: equipoPendiente, origen } = entradaPendiente;
@@ -258,8 +274,14 @@ export default function ControlAccesos() {
   };
 
   const registrar = () => {
-    if (!equipo || !estadoInfo) { showToast('Realiza una búsqueda primero', 'error'); return; }
-    if (!equipo.activo) { showToast('Este equipo está inactivo y no puede registrar movimientos', 'error'); return; }
+    if (!equipo || !estadoInfo) {
+      showToast('Realiza una búsqueda primero', 'error');
+      return;
+    }
+    if (!equipo.activo) {
+      showToast('Este equipo está inactivo y no puede registrar movimientos', 'error');
+      return;
+    }
     escanear(equipo.serial, 'manual');
   };
 
@@ -267,28 +289,31 @@ export default function ControlAccesos() {
   const movimientosConsolidados = agruparMovimientos(recientes);
 
   const hour = currentTime.getHours();
-  let saludo = "Buenos días";
-  let iconoPorDefecto = "☀️";
+  let saludo = 'Buenos días';
+  let iconoPorDefecto = '☀️';
 
   if (hour >= 12 && hour < 18) {
-    saludo = "Buenas tardes";
-    iconoPorDefecto = "⛅";
+    saludo = 'Buenas tardes';
+    iconoPorDefecto = '⛅';
   } else if (hour >= 18 || hour < 6) {
-    saludo = "Buenas noches";
-    iconoPorDefecto = "🌙";
+    saludo = 'Buenas noches';
+    iconoPorDefecto = '🌙';
   }
 
   const icono = iconoClima || iconoPorDefecto;
 
   return (
     <div className="h-full flex flex-col justify-between overflow-hidden">
-
       {/* 1. ENCABEZADO PRINCIPAL EN UNA SOLA FILA */}
       <div className="flex items-center justify-between shrink-0 mb-3">
         <div className="flex items-center gap-6">
           <div>
-            <h2 className="text-2xl font-black text-gray-900 dark:text-gray-100 tracking-tight leading-none">Control de Accesos</h2>
-            <p className="text-[12px] text-gray-600 dark:text-gray-400 font-medium mt-1">Registre la entrada o salida de computadores</p>
+            <h2 className="text-2xl font-black text-gray-900 dark:text-gray-100 tracking-tight leading-none">
+              Control de Accesos
+            </h2>
+            <p className="text-[12px] text-gray-600 dark:text-gray-400 font-medium mt-1">
+              Registre la entrada o salida de computadores
+            </p>
           </div>
 
           <div className="h-8 w-[1px] bg-gray-200 dark:bg-gray-700"></div>
@@ -297,23 +322,40 @@ export default function ControlAccesos() {
             <span className="text-xl">{icono}</span>
             <div>
               <h1 className="text-base font-bold text-gray-900 dark:text-gray-100 leading-none text-xl">
-                {saludo}, <span className="text-brand-600 dark:text-brand-400 text-xl">{user?.nombre || 'Admin'}</span>
+                {saludo},{' '}
+                <span className="text-brand-600 dark:text-brand-400 text-xl">
+                  {user?.nombre || 'Admin'}
+                </span>
                 {temperatura !== null && (
-                  <span className="ml-2 align-middle text-sm font-semibold text-gray-500 dark:text-gray-400">{temperatura}°C</span>
+                  <span className="ml-2 align-middle text-sm font-semibold text-gray-500 dark:text-gray-400">
+                    {temperatura}°C
+                  </span>
                 )}
               </h1>
-              <p className="text-[12px] text-gray-600 dark:text-gray-400 font-medium mt-0.5">Sistema Inteligente de Control de Equipos</p>
+              <p className="text-[12px] text-gray-600 dark:text-gray-400 font-medium mt-0.5">
+                Sistema de Control de Equipos de Cómputo
+              </p>
             </div>
           </div>
         </div>
 
         <div className="bg-surface dark:bg-gray-800 border border-gray-100/80 dark:border-gray-700 rounded-2xl px-4 py-2 shadow-sm text-right min-w-[160px]">
           <div className="text-lg font-black text-brand-600 dark:text-brand-400 font-mono tracking-tight leading-none">
-            {currentTime.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
+            {currentTime.toLocaleTimeString('es-CO', {
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+              hour12: true,
+            })}
           </div>
           {/* En español solo va en mayúscula la primera letra: "Jueves, 22 de octubre de 2026". */}
           <div className="text-[11px] text-gray-600 dark:text-gray-400 first-letter:uppercase mt-1 font-medium">
-            {currentTime.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            {currentTime.toLocaleDateString('es-CO', {
+              weekday: 'long',
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+            })}
           </div>
         </div>
       </div>
@@ -364,18 +406,27 @@ export default function ControlAccesos() {
           >
             <span className="flex w-full items-center justify-between">
               <Activity size={15} className="text-brand-200" />
-              <span className="text-[11px] font-semibold text-brand-100 group-hover:underline">Ver detalle</span>
+              <span className="text-[11px] font-semibold text-brand-100 group-hover:underline">
+                Ver detalle
+              </span>
             </span>
             <span>
-              <span className="block text-lg font-black font-mono leading-none">{stats.equiposDentro}</span>
-              <span className="block text-[11px] text-brand-50 font-medium mt-1">Equipos Dentro</span>
+              <span className="block text-lg font-black font-mono leading-none">
+                {stats.equiposDentro}
+              </span>
+              <span className="block text-[11px] text-brand-50 font-medium mt-1">
+                Equipos Dentro
+              </span>
             </span>
           </button>
         </div>
       </div>
 
       {/* 3. TABLA DE MOVIMIENTOS RECIENTES */}
-      <MovimientosRecientesPanel movimientos={movimientosConsolidados} isSuperAdmin={isSuperAdmin} />
+      <MovimientosRecientesPanel
+        movimientos={movimientosConsolidados}
+        isSuperAdmin={isSuperAdmin}
+      />
 
       {/* 4. FOOTER ESTADO DEL SISTEMA */}
       <EstadoSistemaFooter lastUpdate={lastUpdate} />
@@ -401,16 +452,26 @@ export default function ControlAccesos() {
         onCancelar={cancelarSalida}
       />
 
-      <QRScannerModal open={scannerOpen} onClose={() => setScannerOpen(false)} onResult={(codigo) => escanear(codigo, 'camara')} />
+      <QRScannerModal
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onResult={(codigo) => escanear(codigo, 'camara')}
+      />
 
       {registrando && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center">
           <div className="bg-surface dark:bg-gray-800 rounded-3xl shadow-2xl px-8 py-6 flex flex-col items-center">
             <div className="relative mb-4">
-              <LoaderCircle className="animate-spin text-brand-600 dark:text-brand-400" size={60} strokeWidth={2.5} />
+              <LoaderCircle
+                className="animate-spin text-brand-600 dark:text-brand-400"
+                size={60}
+                strokeWidth={2.5}
+              />
               <Laptop size={24} className="absolute inset-0 m-auto text-brand-700" />
             </div>
-            <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100">Registrando Movimiento...</h2>
+            <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100">
+              Registrando Movimiento...
+            </h2>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-center">
               Espere un momento mientras se procesa la solicitud.
             </p>
