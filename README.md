@@ -179,6 +179,21 @@ certificado HTTPS. Si más adelante otros puestos deben usar CheckIT, deja
 `HOST` vacío y publica la interfaz con HTTPS (por ejemplo, con un proxy
 inverso), porque la cámara del navegador lo exige fuera de `localhost`.
 
+**Etiquetas QR.** El botón **Imprimir** de "Ver QR" genera una etiqueta de
+48 × 48 mm en blanco y negro, con el QR de 32 mm, el serial completo y la
+marca y el modelo. Está pensada para la impresora térmica Jaltech 838L
+(controlador 4Barcode 3B-365B) con rollo adhesivo de 48 × 48 mm. Una sola vez,
+en Windows, abre **Preferencias de impresión** del controlador, crea o elige
+el tamaño de papel de 48 × 48 mm y el tipo de medio **etiqueta con separación
+(gap)**, y calibra el rollo. En el diálogo de impresión de Chrome o Edge, elige
+esa impresora, **Márgenes: ninguno**, **Escala: 100 %** (o predeterminada) y
+desactiva **Encabezados y pies de página**.
+
+**Lector QR.** Debe estar en modo USB teclado (HID) y agregar Enter al final.
+El modo de **escaneo automático** sirve: aunque lea varias veces el mismo
+código, la entrada pide los accesorios y la salida los muestra, y ninguna se
+registra hasta pulsar **Aceptar**.
+
 ### 3. Respaldo de la base de datos
 
 `backend/db/checkit.db` es un archivo SQLite normal: si el disco donde vive
