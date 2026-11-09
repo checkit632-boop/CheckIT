@@ -111,7 +111,7 @@ Catálogo de accesorios que pueden ingresar junto con el computador.
 | Campo | Tipo | Restricciones | Descripción |
 |---|---|---|---|
 | id_accesorio | INTEGER | PK, autoincremental | Identificador |
-| nombre_accesorio | TEXT | NN, UQ | Mouse, Cargador, Teclado, Pantalla |
+| nombre_accesorio | TEXT | NN, UQ | Mouse, Cargador, Teclado, Pantalla, Base refrigerante, Diademas |
 
 ## registro_accesorios
 Accesorios de cada entrada (muchos a muchos). Una entrada sin filas aquí

@@ -397,16 +397,34 @@ function recientesDeHoy(usuario) {
   `).all(...(soloPropios ? [usuario.id_usuario] : []));
 }
 
-// POST /api/registros/escanear  { codigo, accesorios? }
-// La entrada se hace en dos pasos, porque antes hay que preguntar qué
-// accesorios trae la persona: sin `accesorios` responde requiereAccesorios y
-// no registra nada; con `accesorios` (lista de ids, vacía si solo trae el
-// computador) registra la entrada. La salida se registra en el primer paso.
+// Accesorios registrados con una entrada, en el orden del catálogo.
+function accesoriosDeRegistro(idRegistro) {
+  return db.prepare(`
+    SELECT a.id_accesorio, a.nombre_accesorio FROM registro_accesorios ra
+    JOIN accesorios a ON a.id_accesorio = ra.id_accesorio
+    WHERE ra.id_registro = ?
+    ORDER BY a.id_accesorio
+  `).all(idRegistro);
+}
+
+// POST /api/registros/escanear  { codigo, accesorios?, confirmaSalida? }
+// Entrada y salida se hacen en dos pasos, para que el vigilante revise los
+// accesorios antes de registrar:
+// - Entrada: sin `accesorios` responde requiereAccesorios y no registra nada;
+//   con `accesorios` (lista de ids, vacía si solo trae el computador) la
+//   registra.
+// - Salida: sin `confirmaSalida` responde requiereConfirmacionSalida con los
+//   accesorios con que entró el equipo, y no registra nada; con
+//   `confirmaSalida: true` la registra.
 router.post('/escanear', asyncHandler((req, res) => {
   const serial = extraerSerial(req.body?.codigo);
   if (!serial) return res.status(400).json({ error: 'El código escaneado está vacío.' });
 
   const confirmaEntrada = req.body?.accesorios !== undefined;
+  const confirmaSalida = req.body?.confirmaSalida === true;
+  if (confirmaEntrada && confirmaSalida) {
+    return res.status(400).json({ error: 'No se puede confirmar una entrada y una salida a la vez.' });
+  }
   const idsAccesorios = confirmaEntrada ? normalizarAccesorios(req.body.accesorios) : [];
   if (!idsAccesorios) return res.status(400).json({ error: 'La lista de accesorios no es válida.' });
 
@@ -437,10 +455,14 @@ router.post('/escanear', asyncHandler((req, res) => {
   const registrar = db.transaction(() => {
     const ultimo = obtenerUltimoMovimiento(equipo.id_equipo);
     const movimiento = ultimo?.nombre_movimiento?.toLowerCase() === 'entrada' ? 'Salida' : 'Entrada';
-    if (movimiento === 'Entrada' && !confirmaEntrada) return { requiereAccesorios: true };
-    // Otro puesto registró la entrada mientras esta ventana estaba abierta: no
-    // se convierte lo confirmado aquí en una salida que nadie pidió.
+    if (movimiento === 'Entrada' && !confirmaEntrada && !confirmaSalida) return { requiereAccesorios: true };
+    if (movimiento === 'Salida' && !confirmaEntrada && !confirmaSalida) {
+      return { requiereConfirmacionSalida: true, entrada: ultimo };
+    }
+    // Otro puesto registró el movimiento mientras esta ventana estaba
+    // abierta: no se convierte lo confirmado aquí en el movimiento contrario.
     if (movimiento === 'Salida' && confirmaEntrada) return { yaAdentro: true };
+    if (movimiento === 'Entrada' && confirmaSalida) return { yaAfuera: true };
     const tipoMov = db.prepare('SELECT id_tipo_movimiento FROM tipos_movimiento WHERE nombre_movimiento = ?').get(movimiento);
     const info = db.prepare(`
       INSERT INTO registros (id_equipo, id_usuario, id_tipo_movimiento) VALUES (?, ?, ?)
@@ -452,6 +474,22 @@ router.post('/escanear', asyncHandler((req, res) => {
   const registro = registrar();
   if (registro.requiereAccesorios) {
     return res.json({ requiereAccesorios: true, equipo, estado: estadoDeEquipo(equipo.id_equipo) });
+  }
+  if (registro.requiereConfirmacionSalida) {
+    return res.json({
+      requiereConfirmacionSalida: true,
+      equipo,
+      estado: estadoDeEquipo(equipo.id_equipo),
+      accesoriosEntrada: accesoriosDeRegistro(registro.entrada.id_registro),
+      fechaEntrada: fechaLocalDeRegistro(registro.entrada.id_registro),
+    });
+  }
+  if (registro.yaAfuera) {
+    return res.status(409).json({
+      error: 'Este equipo ya se encuentra afuera. Registra una entrada.',
+      equipo,
+      estado: estadoDeEquipo(equipo.id_equipo),
+    });
   }
   if (registro.yaAdentro) {
     return res.status(409).json({

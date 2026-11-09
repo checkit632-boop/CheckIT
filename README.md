@@ -361,14 +361,17 @@ jerarquía de creación estricta:
   manual del serial.
 - Historial de movimientos y resumen general (Administrador y Super Administrador).
 
-## Accesorios al registrar la entrada
+## Accesorios en la entrada y la salida
 
 Antes de registrar una entrada, Control de Acceso abre una ventana para
-indicar qué accesorios trae la persona (Mouse, Cargador, Teclado, Pantalla;
-selección múltiple y opcional). Las salidas se registran directo. Se guardan
-en las tablas `accesorios` y `registro_accesorios`, que las bases existentes
-reciben solas al arrancar el backend, y se ven en el Historial de Movimientos
-y en sus reportes.
+indicar qué accesorios trae la persona (Mouse, Cargador, Teclado, Pantalla,
+Base refrigerante y Diademas; selección múltiple y opcional). Antes de
+registrar la salida, otra ventana muestra los accesorios con que entró el
+equipo para comprobarlos; al pulsar **Aceptar** se registra la salida. Se
+guardan en las tablas `accesorios` y `registro_accesorios`, que las bases
+existentes reciben solas al arrancar el backend (también los accesorios
+agregados después), y se ven en el Historial de Movimientos y en sus
+reportes.
 
 ## Mejoras de usabilidad de la interfaz (v6.4)
 
