@@ -314,7 +314,7 @@ correos. Prueban el inicio de sesión con código, los roles, la entrada y la
 salida con accesorios, las lecturas repetidas, el código de contingencia, la
 cuenta inactivada a mitad del ingreso, el respaldo al arrancar y el cierre
 recuperado, y desde la v7.0 el serial generado, la limpieza por inactividad,
-el visor de la base y la migración desde la 6.11 (21 pruebas, unos 40
+el visor de la base y la migración desde la 6.11 (22 pruebas, unos 40
 segundos). Reemplazan a `backend/scripts/run_tests.sh`, que quedó
 desactualizado.
 
@@ -336,6 +336,10 @@ desactualizado.
     historial (borra nombre, correo, documento y celular y la deja como
     `eliminado_N`, para no perder quién hizo cada movimiento).
   Cada acción queda en la auditoría, sin los datos personales borrados.
+- **Marca "Otra".** Si la marca del equipo no está en la lista, se elige
+  **Otra (escribir la marca)…**, se escribe y se pulsa **Agregar**: queda en el
+  catálogo para los siguientes equipos. No se duplica si ya existe con otras
+  mayúsculas o espacios, y queda en la auditoría.
 - **Barra de desplazamiento horizontal** en las tablas de todos los módulos
   cuando la pantalla es angosta, y desplazamiento vertical de la página.
 - **Visor de la base de datos** en Auditoría (solo Super Administrador): pide

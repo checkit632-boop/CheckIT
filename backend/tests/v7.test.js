@@ -549,3 +549,81 @@ test('migración: una base de la 6.11 recibe la columna anonimizado y el tipo vi
     fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5 });
   }
 });
+
+// ---------- Marca "Otra" ----------
+test('marca nueva: cualquier rol la agrega, no se duplica con otras mayúsculas y se usa en un equipo', async () => {
+  const nueva = await pedir('POST', '/api/catalogos/marcas', {
+    token: ctx.tokenOpNuevo,
+    cuerpo: { nombre_marca: '  Compumax   Ñandú ' },
+  });
+  assert.equal(nueva.status, 201, JSON.stringify(nueva.datos));
+  assert.equal(nueva.datos.nombre_marca, 'Compumax Ñandú');
+
+  const repetida = await pedir('POST', '/api/catalogos/marcas', {
+    token: ctx.admin,
+    cuerpo: { nombre_marca: 'COMPUMAX ñANDÚ' },
+  });
+  assert.equal(repetida.status, 200);
+  assert.equal(repetida.datos.existia, true);
+  assert.equal(repetida.datos.id_marca, nueva.datos.id_marca);
+  assert.equal(
+    (
+      await pedir('POST', '/api/catalogos/marcas', {
+        token: ctx.admin,
+        cuerpo: { nombre_marca: 'hp' },
+      })
+    ).datos.existia,
+    true
+  );
+
+  for (const malo of ['', 'x', '<script>', 'a'.repeat(41)]) {
+    const r = await pedir('POST', '/api/catalogos/marcas', {
+      token: ctx.admin,
+      cuerpo: { nombre_marca: malo },
+    });
+    assert.equal(r.status, 400, malo);
+  }
+  assert.equal(
+    (await pedir('POST', '/api/catalogos/marcas', { cuerpo: { nombre_marca: 'Sin Sesion' } }))
+      .status,
+    401
+  );
+
+  const marcas = (await pedir('GET', '/api/catalogos/marcas', { token: ctx.admin })).datos;
+  assert.equal(marcas.filter((m) => m.nombre_marca.toLowerCase() === 'compumax ñandú').length, 1);
+
+  const persona = await pedir('POST', '/api/personas', {
+    token: ctx.tokenOpNuevo,
+    cuerpo: {
+      id_tipo_documento: ctx.tipos[0].id_tipo_documento,
+      numero_documento: '3001',
+      nombres: 'Luz',
+      apellidos: 'Mora',
+    },
+  });
+  const equipo = await pedir('POST', '/api/equipos', {
+    token: ctx.tokenOpNuevo,
+    cuerpo: {
+      id_persona: persona.datos.id_persona,
+      id_marca: nueva.datos.id_marca,
+      serial: 'MARCA-NUEVA-1',
+      id_estado: ctx.estados[0].id_estado,
+    },
+  });
+  assert.equal(equipo.status, 201);
+  const serial = await pedir(
+    'GET',
+    `/api/equipos/serial-generado?id_marca=${nueva.datos.id_marca}&documento=3001`,
+    { token: ctx.admin }
+  );
+  assert.match(serial.datos.serial, /^C[A-HJ-NP-Z2-9]{4}$/);
+  conBase((db) => {
+    assert.ok(
+      db
+        .prepare(
+          "SELECT 1 FROM auditoria WHERE tabla_afectada = 'marcas' AND descripcion LIKE '%Compumax Ñandú%'"
+        )
+        .get()
+    );
+  });
+});
