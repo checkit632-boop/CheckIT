@@ -13,6 +13,8 @@ import { useConfirmacion } from '../context/ConfirmContext';
 // servidor: la pantalla ya no descarga todo el inventario ni todas las
 // personas).
 const POR_PAGINA = 25;
+// Valor de la opción "Otra" del selector de marca (v7.0).
+const MARCA_OTRA = '__otra__';
 
 const inputCls = 'mt-1 w-full border border-gray-200 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500';
 const labelCls = 'text-sm font-semibold text-gray-700 dark:text-gray-300';
@@ -41,6 +43,7 @@ export default function Equipos() {
 
   const emptyForm = { id_persona: '', id_marca: '', modelo: '', serial: '', id_estado: '', observaciones: '' };
   const [form, setForm] = useState(emptyForm);
+  const [marcaNueva, setMarcaNueva] = useState('');
   const [nuevaPersona, setNuevaPersona] = useState(false);
   const [personaForm, setPersonaForm] = useState({ id_tipo_documento: 1, numero_documento: '', nombres: '', apellidos: '', correo: '', celular: '' });
   const [personaSearch, setPersonaSearch] = useState('');
@@ -87,6 +90,7 @@ export default function Equipos() {
   const openNew = () => {
     setEditingId(null);
     setForm(emptyForm);
+    setMarcaNueva('');
     setNuevaPersona(false);
     setPersonaForm({ id_tipo_documento: 1, numero_documento: '', nombres: '', apellidos: '', correo: '', celular: '' });
     setPersonaSearch('');
@@ -96,19 +100,43 @@ export default function Equipos() {
   const openEdit = (eq) => {
     setEditingId(eq.id_equipo);
     setForm({ id_persona: eq.id_persona, id_marca: eq.id_marca, modelo: eq.modelo || '', serial: eq.serial, id_estado: eq.id_estado, observaciones: eq.observaciones || '' });
+    setMarcaNueva('');
     setNuevaPersona(false);
     setPersonaSearch(`${eq.persona_nombres} ${eq.persona_apellidos}`);
     setModalOpen(true);
+  };
+
+  // v7.0: si eligió "Otra", agrega la marca escrita al catálogo (o toma la
+  // existente si ya estaba con otras mayúsculas) y la deja seleccionada.
+  // Devuelve el id de la marca, o null si falta escribirla.
+  const asegurarMarca = async () => {
+    if (form.id_marca !== MARCA_OTRA) return form.id_marca;
+    if (!marcaNueva.trim()) { showToast('Escribe el nombre de la marca', 'error'); return null; }
+    try {
+      const { data } = await api.post('/catalogos/marcas', { nombre_marca: marcaNueva });
+      setMarcas((lista) => (lista.some((m) => m.id_marca === data.id_marca)
+        ? lista
+        : [...lista, { id_marca: data.id_marca, nombre_marca: data.nombre_marca }].sort((a, b) => a.nombre_marca.localeCompare(b.nombre_marca, 'es'))));
+      setForm((f) => ({ ...f, id_marca: String(data.id_marca) }));
+      setMarcaNueva('');
+      showToast(data.existia ? `La marca ${data.nombre_marca} ya estaba registrada: quedó seleccionada` : `Marca ${data.nombre_marca} agregada`);
+      return String(data.id_marca);
+    } catch (err) {
+      showToast(err.response?.data?.error || 'No se pudo agregar la marca', 'error');
+      return null;
+    }
   };
 
   // v7.0: serial para equipos sin serial visible. El servidor lo arma con la
   // marca, el modelo y el documento del responsable, y comprueba que no exista.
   const generarSerial = async () => {
     if (!form.id_marca) { showToast('Elige primero la marca del equipo', 'error'); return; }
+    const idMarca = await asegurarMarca();
+    if (!idMarca) return;
     try {
       const { data } = await api.get('/equipos/serial-generado', {
         params: {
-          id_marca: form.id_marca,
+          id_marca: idMarca,
           modelo: form.modelo || undefined,
           id_persona: !nuevaPersona && form.id_persona ? form.id_persona : undefined,
           documento: nuevaPersona ? personaForm.numero_documento || undefined : undefined,
@@ -129,6 +157,9 @@ export default function Equipos() {
     e.preventDefault();
     try {
       let idPersona = form.id_persona;
+      // Primero la marca nueva (si eligió "Otra"): si falla, no se crea nada.
+      const idMarca = form.id_marca ? await asegurarMarca() : '';
+      if (form.id_marca && !idMarca) return;
 
       if (nuevaPersona) {
         if (!personaForm.numero_documento || !personaForm.nombres || !personaForm.apellidos) {
@@ -138,15 +169,15 @@ export default function Equipos() {
         idPersona = data.id_persona;
       }
 
-      if (!idPersona || !form.id_marca || !form.serial || !form.id_estado) {
+      if (!idPersona || !idMarca || !form.serial || !form.id_estado) {
         showToast('Marca, serial, condición y responsable son obligatorios', 'error'); return;
       }
 
       if (editingId) {
-        await api.put(`/equipos/${editingId}`, { ...form, id_persona: idPersona });
+        await api.put(`/equipos/${editingId}`, { ...form, id_marca: idMarca, id_persona: idPersona });
         showToast('Equipo actualizado');
       } else {
-        await api.post('/equipos', { ...form, id_persona: idPersona });
+        await api.post('/equipos', { ...form, id_marca: idMarca, id_persona: idPersona });
         showToast('Equipo registrado — QR generado ✓');
       }
       setModalOpen(false);
@@ -361,7 +392,30 @@ export default function Equipos() {
             <select className={inputCls} value={form.id_marca} onChange={(e) => setForm((f) => ({ ...f, id_marca: e.target.value }))}>
               <option value="">Seleccione una marca...</option>
               {marcas.map((m) => <option key={m.id_marca} value={m.id_marca}>{m.nombre_marca}</option>)}
+              <option value={MARCA_OTRA}>Otra (escribir la marca)…</option>
             </select>
+            {/* v7.0: marca que no está en la lista. Se agrega al catálogo y queda
+                disponible para los siguientes equipos. */}
+            {form.id_marca === MARCA_OTRA && (
+              <div className="flex gap-2 mt-2">
+                <input
+                  autoFocus
+                  className={inputCls + ' mt-0'}
+                  placeholder="Escribe la marca, por ejemplo: Compumax"
+                  maxLength={40}
+                  value={marcaNueva}
+                  onChange={(e) => setMarcaNueva(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); asegurarMarca(); } }}
+                />
+                <button
+                  type="button"
+                  onClick={asegurarMarca}
+                  className="shrink-0 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold px-3"
+                >
+                  Agregar
+                </button>
+              </div>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div><label className={labelCls}>Modelo</label><input className={inputCls} placeholder="XPS 15" value={form.modelo} onChange={(e) => setForm((f) => ({ ...f, modelo: e.target.value }))} /></div>
