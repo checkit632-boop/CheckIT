@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
   id_rol             INTEGER NOT NULL,
   estado             INTEGER DEFAULT 1, -- 1 activo, 0 inactivo
   fecha_creacion     DATETIME DEFAULT CURRENT_TIMESTAMP,
+  anonimizado        INTEGER NOT NULL DEFAULT 0, -- v7.0: 1 = datos personales borrados por inactividad; se conserva solo como autor del historial
   FOREIGN KEY (id_rol) REFERENCES roles(id_rol),
   FOREIGN KEY (id_tipo_documento) REFERENCES tipos_documento(id_tipo_documento)
 );
@@ -168,7 +169,7 @@ CREATE TABLE IF NOT EXISTS codigos_verificacion (
   id_codigo      INTEGER PRIMARY KEY AUTOINCREMENT,
   id_usuario     INTEGER NOT NULL,
   codigo_hash    TEXT NOT NULL,
-  tipo           TEXT NOT NULL CHECK (tipo IN ('reset_password','login_2fa')),
+  tipo           TEXT NOT NULL CHECK (tipo IN ('reset_password','login_2fa','visor_bd')), -- visor_bd (v7.0): acceso al visor de la base
   expira         DATETIME NOT NULL,
   usado          INTEGER NOT NULL DEFAULT 0,
   intentos       INTEGER NOT NULL DEFAULT 0, -- O-02: códigos incorrectos; a los 5 se invalida

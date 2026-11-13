@@ -75,6 +75,39 @@ function migrate() {
     console.warn('No se pudo actualizar el correo semilla del Super Administrador:', err.message);
   }
 
+  // v7.0: marca de cuenta anonimizada por inactividad.
+  if (!columnExists('usuarios', 'anonimizado')) {
+    db.exec('ALTER TABLE usuarios ADD COLUMN anonimizado INTEGER NOT NULL DEFAULT 0');
+  }
+
+  // v7.0: tercer tipo de código (visor_bd). SQLite no permite cambiar un
+  // CHECK con ALTER TABLE, así que la tabla se reconstruye con los mismos
+  // datos, en una transacción.
+  const sqlCodigos = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'codigos_verificacion'").get()?.sql || '';
+  if (!sqlCodigos.includes('visor_bd')) {
+    db.pragma('foreign_keys = OFF');
+    db.transaction(() => {
+      db.exec(`
+        CREATE TABLE codigos_verificacion_v7 (
+          id_codigo      INTEGER PRIMARY KEY AUTOINCREMENT,
+          id_usuario     INTEGER NOT NULL,
+          codigo_hash    TEXT NOT NULL,
+          tipo           TEXT NOT NULL CHECK (tipo IN ('reset_password','login_2fa','visor_bd')),
+          expira         DATETIME NOT NULL,
+          usado          INTEGER NOT NULL DEFAULT 0,
+          intentos       INTEGER NOT NULL DEFAULT 0,
+          fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario)
+        );
+        INSERT INTO codigos_verificacion_v7 (id_codigo, id_usuario, codigo_hash, tipo, expira, usado, intentos, fecha_creacion)
+          SELECT id_codigo, id_usuario, codigo_hash, tipo, expira, usado, intentos, fecha_creacion FROM codigos_verificacion;
+        DROP TABLE codigos_verificacion;
+        ALTER TABLE codigos_verificacion_v7 RENAME TO codigos_verificacion;
+      `);
+    })();
+    db.pragma('foreign_keys = ON');
+  }
+
   migrarFechasAUtc();
 }
 

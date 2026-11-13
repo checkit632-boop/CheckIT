@@ -72,7 +72,8 @@ export default function Usuarios() {
   };
 
   return (
-    <div>
+    <div className="flex-1 min-h-0 overflow-y-auto">
+      {/* v7.0: la página se desplaza si no cabe en pantallas pequeñas. */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">Gestión de Usuarios</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Administra los usuarios del sistema (según tu rol: Administradores y/o Operadores)</p>

@@ -106,8 +106,8 @@ export default function AlertaCierresAutomaticos({ onAbiertaCambio }) {
         )}
 
         <div className="border border-gray-100 dark:border-gray-700 rounded-xl overflow-hidden">
-          <div className="max-h-[45vh] overflow-y-auto">
-            <table className="w-full text-sm">
+          <div className="max-h-[45vh] overflow-auto">
+            <table className="w-full min-w-[640px] text-sm">
               <thead className="bg-amber-50 dark:bg-amber-950/30 text-gray-700 dark:text-gray-300 text-[11px] uppercase tracking-wide sticky top-0">
                 <tr>
                   <th className="text-left px-4 py-2.5">Equipo</th>

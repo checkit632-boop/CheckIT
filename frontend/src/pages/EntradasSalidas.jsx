@@ -19,6 +19,7 @@ import EstadoSistemaFooter from '../components/entradas-salidas/EstadoSistemaFoo
 import AvisoPrivacidad from '../components/AvisoPrivacidad';
 import EquiposDentroModal from '../components/entradas-salidas/EquiposDentroModal';
 import AlertaCierresAutomaticos from '../components/entradas-salidas/AlertaCierresAutomaticos';
+import AlertaInactividad from '../components/entradas-salidas/AlertaInactividad';
 import AccesoriosEntradaModal from '../components/entradas-salidas/AccesoriosEntradaModal';
 import AccesoriosSalidaModal from '../components/entradas-salidas/AccesoriosSalidaModal';
 
@@ -74,6 +75,7 @@ export default function ControlAccesos() {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [dentroOpen, setDentroOpen] = useState(false);
   const [alertaCierresOpen, setAlertaCierresOpen] = useState(false);
+  const [alertaInactividadOpen, setAlertaInactividadOpen] = useState(false);
   // Entrada a la espera de que se indiquen los accesorios: { equipo, origen }.
   const [entradaPendiente, setEntradaPendiente] = useState(null);
   // Salida a la espera de confirmar los accesorios de la entrada:
@@ -245,7 +247,12 @@ export default function ControlAccesos() {
   // escribe en su buscador, útil para ubicar un equipo en la lista.
   useLectorCodigos((codigo) => escanear(codigo, 'lector'), {
     activo:
-      !scannerOpen && !dentroOpen && !alertaCierresOpen && !entradaPendiente && !salidaPendiente,
+      !scannerOpen &&
+      !dentroOpen &&
+      !alertaCierresOpen &&
+      !alertaInactividadOpen &&
+      !entradaPendiente &&
+      !salidaPendiente,
   });
 
   const aceptarEntrada = async (accesorios) => {
@@ -362,6 +369,7 @@ export default function ControlAccesos() {
 
       {/* Aviso de equipos que quedaron dentro y cerró el reinicio de las 11:59 p. m. */}
       <AlertaCierresAutomaticos onAbiertaCambio={setAlertaCierresOpen} />
+      <AlertaInactividad onAbiertaCambio={setAlertaInactividadOpen} />
 
       {/* 2. FORMULARIO VALIDAR ACCESO Y TARJETAS DERECHA */}
       <div className="flex gap-4 items-stretch shrink-0 mb-3">
