@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Search, Plus, Pencil, Trash2, QrCode, Power, PowerOff } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, QrCode, Power, PowerOff, Wand2 } from 'lucide-react';
 import api from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
@@ -101,6 +101,30 @@ export default function Equipos() {
     setModalOpen(true);
   };
 
+  // v7.0: serial para equipos sin serial visible. El servidor lo arma con la
+  // marca, el modelo y el documento del responsable, y comprueba que no exista.
+  const generarSerial = async () => {
+    if (!form.id_marca) { showToast('Elige primero la marca del equipo', 'error'); return; }
+    try {
+      const { data } = await api.get('/equipos/serial-generado', {
+        params: {
+          id_marca: form.id_marca,
+          modelo: form.modelo || undefined,
+          id_persona: !nuevaPersona && form.id_persona ? form.id_persona : undefined,
+          documento: nuevaPersona ? personaForm.numero_documento || undefined : undefined,
+        },
+      });
+      setForm((f) => ({
+        ...f,
+        serial: data.serial,
+        observaciones: f.observaciones || 'Serial asignado por CheckIT: el equipo no tenía serial visible. Identificarlo por su etiqueta QR.',
+      }));
+      showToast(`Serial generado: ${data.serial}`);
+    } catch (err) {
+      showToast(err.response?.data?.error || 'No se pudo generar el serial', 'error');
+    }
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     try {
@@ -172,7 +196,8 @@ export default function Equipos() {
   };
 
   return (
-    <div>
+    <div className="flex-1 min-h-0 overflow-y-auto">
+      {/* v7.0: la página se desplaza si no cabe en pantallas pequeñas. */}
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">Registro de Equipos</h1>
@@ -200,8 +225,10 @@ export default function Equipos() {
 
       <div className="bg-surface dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 font-bold text-gray-900 dark:text-gray-100">Inventario de Computadores</div>
-        <div className="overflow-y-auto max-h-[520px]">
-          <table className="w-full text-sm">
+        {/* v7.0: en pantallas angostas la tabla conserva su ancho y aparece
+            una barra de desplazamiento horizontal, en vez de apretar las columnas. */}
+        <div className="overflow-auto max-h-[520px]">
+          <table className="w-full min-w-[900px] text-sm whitespace-nowrap">
             <thead className="bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400 text-xs uppercase sticky top-0">
               <tr>
                 <th className="text-left px-5 py-2.5">Serial</th>
@@ -338,7 +365,23 @@ export default function Equipos() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div><label className={labelCls}>Modelo</label><input className={inputCls} placeholder="XPS 15" value={form.modelo} onChange={(e) => setForm((f) => ({ ...f, modelo: e.target.value }))} /></div>
-            <div><label className={labelCls}>Serial</label><input className={inputCls} placeholder="SN-000000" value={form.serial} onChange={(e) => setForm((f) => ({ ...f, serial: e.target.value }))} /></div>
+            <div>
+              <label className={labelCls}>Serial</label>
+              <div className="flex gap-2">
+                <input className={inputCls} placeholder="SN-000000" value={form.serial} onChange={(e) => setForm((f) => ({ ...f, serial: e.target.value }))} />
+                {!editingId && (
+                  <button
+                    type="button"
+                    onClick={generarSerial}
+                    title="Para un equipo sin serial visible: genera un código único de 5 caracteres"
+                    className="mt-1 shrink-0 flex items-center gap-1 rounded-xl border border-brand-300 dark:border-brand-700 bg-brand-50 dark:bg-brand-900/30 px-2.5 text-xs font-semibold text-brand-800 dark:text-brand-200 hover:bg-brand-100 dark:hover:bg-brand-900/50"
+                  >
+                    <Wand2 size={14} /> Generar
+                  </button>
+                )}
+              </div>
+              {!editingId && <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">¿El equipo no tiene serial? Elige la marca y pulsa Generar.</p>}
+            </div>
           </div>
           <div>
             <label className={labelCls}>Condición</label>

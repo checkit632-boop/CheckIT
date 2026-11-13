@@ -13,8 +13,8 @@ export default function MovimientosRecientesPanel({ movimientos, isSuperAdmin })
         <span className="text-[11px] text-gray-600 dark:text-gray-400 font-medium">Resumen por equipo</span>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        <table className="w-full text-left border-collapse">
+      <div className="flex-1 overflow-auto">
+        <table className="w-full min-w-[640px] text-left border-collapse">
           <thead className=" bg-green-100 dark:bg-brand-900/40 sticky top-0 backdrop-blur-sm z-10 text-[11px] text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">
             <tr>
               <th className="py-2 px-5 font-bold text-black dark:text-gray-100">MARCA PC / SERIAL / PROPIETARIO</th>

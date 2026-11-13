@@ -32,6 +32,7 @@ Cuentas que inician sesión en el sistema.
 | id_rol | INTEGER | NN, FK → roles | Rol asignado |
 | estado | INTEGER | por defecto 1 | 1 = activo, 0 = inactivo (no puede iniciar sesión) |
 | fecha_creacion | DATETIME | por defecto ahora | Fecha de creación |
+| anonimizado | INTEGER | NN, por defecto 0 | 1 = cuenta anonimizada por más de un año de inactividad (v7.0): sin datos personales, se conserva como autor del historial |
 
 ## tipos_documento
 | Campo | Tipo | Restricciones | Descripción |
@@ -154,7 +155,7 @@ Códigos de 6 dígitos para el tercer factor del login (`login_2fa`) y para
 | id_codigo | INTEGER | PK, autoincremental | Identificador |
 | id_usuario | INTEGER | NN, FK → usuarios | Dueño del código |
 | codigo_hash | TEXT | NN | Código cifrado con bcrypt (nunca en texto plano) |
-| tipo | TEXT | NN, CHECK | `reset_password` o `login_2fa` |
+| tipo | TEXT | NN, CHECK | `reset_password`, `login_2fa` o `visor_bd` (acceso al visor de la base, v7.0) |
 | expira | DATETIME | NN | Momento de vencimiento |
 | usado | INTEGER | NN, por defecto 0 | 1 = ya usado o invalidado |
 | intentos | INTEGER | NN, por defecto 0 | Códigos incorrectos ingresados; al llegar a 5 el código se invalida (O-02) |

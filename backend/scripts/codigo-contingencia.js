@@ -20,13 +20,17 @@ const db = require('../db/database');
 
 const MINUTOS = 5;
 const usuario = (process.argv[2] || '').trim();
+// v7.0: con "visor" como segundo dato, el código sirve para abrir el visor de
+// la base desde Auditoría (solo Super Administrador) en vez de para entrar.
+const paraVisor = (process.argv[3] || '').trim().toLowerCase() === 'visor';
+const TIPO = paraVisor ? 'visor_bd' : 'login_2fa';
 
 if (!usuario) {
-  console.error('Uso: npm run codigo -- NOMBRE_DE_USUARIO');
+  console.error('Uso: npm run codigo -- NOMBRE_DE_USUARIO [visor]');
   process.exit(1);
 }
 
-const cuenta = db.prepare('SELECT id_usuario, usuario, estado FROM usuarios WHERE usuario = ?').get(usuario);
+const cuenta = db.prepare('SELECT u.id_usuario, u.usuario, u.estado, r.nombre_rol FROM usuarios u JOIN roles r ON r.id_rol = u.id_rol WHERE u.usuario = ?').get(usuario);
 if (!cuenta || cuenta.usuario === 'sistema') {
   console.error(`✖ No existe el usuario "${usuario}".`);
   process.exit(1);
@@ -35,19 +39,23 @@ if (!cuenta.estado) {
   console.error(`✖ La cuenta "${usuario}" está inactiva. Actívela antes de generar un código.`);
   process.exit(1);
 }
+if (paraVisor && cuenta.nombre_rol !== 'Super Administrador') {
+  console.error('✖ El visor de la base de datos es solo para el Super Administrador.');
+  process.exit(1);
+}
 
 const codigo = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
 const expira = new Date(Date.now() + MINUTOS * 60000).toISOString();
 
 db.transaction(() => {
-  db.prepare(`UPDATE codigos_verificacion SET usado = 1 WHERE id_usuario = ? AND tipo = 'login_2fa' AND usado = 0`)
-    .run(cuenta.id_usuario);
-  db.prepare(`INSERT INTO codigos_verificacion (id_usuario, codigo_hash, tipo, expira) VALUES (?, ?, 'login_2fa', ?)`)
-    .run(cuenta.id_usuario, bcrypt.hashSync(codigo, 8), expira);
+  db.prepare(`UPDATE codigos_verificacion SET usado = 1 WHERE id_usuario = ? AND tipo = ? AND usado = 0`)
+    .run(cuenta.id_usuario, TIPO);
+  db.prepare(`INSERT INTO codigos_verificacion (id_usuario, codigo_hash, tipo, expira) VALUES (?, ?, ?, ?)`)
+    .run(cuenta.id_usuario, bcrypt.hashSync(codigo, 8), TIPO, expira);
   db.prepare(`INSERT INTO auditoria (id_usuario, accion, tabla_afectada, descripcion) VALUES (?, 'SISTEMA', 'usuarios', ?)`)
-    .run(cuenta.id_usuario, `Código de acceso de contingencia generado en la consola del PC para ${cuenta.usuario}`);
+    .run(cuenta.id_usuario, `Código ${paraVisor ? 'del visor de la base de datos' : 'de acceso'} de contingencia generado en la consola del PC para ${cuenta.usuario}`);
 })();
 
 console.log(`\nCódigo de contingencia para ${cuenta.usuario}: ${codigo}`);
-console.log(`Vence en ${MINUTOS} minutos. Debe escribirse en la pantalla del código, después de la contraseña.\n`);
+console.log(`Vence en ${MINUTOS} minutos. Debe escribirse en la pantalla del código, después de la contraseña${paraVisor ? ' del visor' : ''}.\n`);
 db.close();

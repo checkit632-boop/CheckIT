@@ -313,8 +313,62 @@ datos ficticios, en otro puerto: nunca tocan `backend/db/checkit.db` ni envían
 correos. Prueban el inicio de sesión con código, los roles, la entrada y la
 salida con accesorios, las lecturas repetidas, el código de contingencia, la
 cuenta inactivada a mitad del ingreso, el respaldo al arrancar y el cierre
-recuperado. Tardan cerca de 20 segundos. Reemplazan a
-`backend/scripts/run_tests.sh`, que quedó desactualizado.
+recuperado, y desde la v7.0 el serial generado, la limpieza por inactividad,
+el visor de la base y la migración desde la 6.11 (21 pruebas, unos 40
+segundos). Reemplazan a `backend/scripts/run_tests.sh`, que quedó
+desactualizado.
+
+### 6. Novedades de la versión 7.0 (pedidos de portería)
+
+- **Serial generado.** En **Nuevo Equipo**, el botón **Generar** propone un
+  serial único de 5 caracteres en mayúscula para equipos sin serial visible:
+  inicial de la marca, primer carácter del modelo y tres caracteres calculados
+  con el documento del responsable. No usa O, 0, I ni 1, para no confundirlos.
+  Como no está impreso en el equipo, su identificación es la etiqueta QR.
+- **Datos con más de un año sin uso.** Al iniciar sesión, el Administrador y
+  el Super Administrador ven en Control de Accesos los equipos sin
+  movimientos y los usuarios sin iniciar sesión en 365 días (cada uno, solo
+  lo que su rol puede gestionar). Nada se borra sin su autorización. Al
+  autorizar, el sistema guarda un respaldo y:
+  - borra el equipo con sus movimientos y accesorios, y los datos de la
+    persona dueña si no tiene otros equipos;
+  - elimina la cuenta que nunca registró nada, o **anonimiza** la que tiene
+    historial (borra nombre, correo, documento y celular y la deja como
+    `eliminado_N`, para no perder quién hizo cada movimiento).
+  Cada acción queda en la auditoría, sin los datos personales borrados.
+- **Barra de desplazamiento horizontal** en las tablas de todos los módulos
+  cuando la pantalla es angosta, y desplazamiento vertical de la página.
+- **Visor de la base de datos** en Auditoría (solo Super Administrador): pide
+  la contraseña y un código de 6 dígitos por correo, dura 15 minutos, es de
+  solo lectura y oculta contraseñas y códigos. Si el correo falla:
+  `npm run codigo -- USUARIO visor`.
+
+**Otras herramientas para ver la base** (`backend/db/checkit.db`):
+[DB Browser for SQLite](https://sqlitebrowser.org) (gratuito, recomendado),
+SQLiteStudio o la extensión *SQLite Viewer* de Visual Studio Code. Ábrala
+siempre **en modo de solo lectura** (en DB Browser: *Archivo > Abrir base de
+datos de solo lectura*) o, mejor, abra una copia de respaldo: editar el
+archivo con CheckIT encendido puede dañar los datos.
+
+**Actualizar un PC con la 6.11** (instalado con `git clone`, como indica el
+Manual de instalación), en PowerShell como administrador:
+
+```powershell
+cd C:\CheckIT\app\backend
+npm run backup
+Stop-ScheduledTask -TaskName "CheckIT api"
+Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force
+cd C:\CheckIT\app
+git fetch --tags
+git checkout v7.0
+cd backend; npm ci --omit=dev
+cd ..\frontend; npm ci; npm run build
+Start-ScheduledTask -TaskName "CheckIT api"
+curl.exe http://localhost:4000/api/health
+```
+
+Al arrancar, la API migra sola la base (agrega la columna `anonimizado` y el
+tipo de código `visor_bd`) sin perder datos. El `.env` no cambia.
 
 ## Modelo de datos
 

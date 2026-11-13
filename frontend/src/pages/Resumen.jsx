@@ -820,7 +820,7 @@ export default function Resumen() {
         </div>
 
         <div className="flex-1 overflow-y-auto overflow-x-auto min-h-0">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full min-w-[1000px] text-left border-collapse">
             <thead className="bg-brand-50/80 dark:bg-brand-900/30 text-gray-700 dark:text-gray-300 text-[11px] uppercase tracking-wider sticky top-0 z-10">
               <tr>
                 <th className="px-5 py-3 font-bold">RESPONSABLE</th>

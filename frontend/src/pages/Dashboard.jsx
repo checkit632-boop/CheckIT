@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
-import { ArrowDownCircle, ArrowUpCircle, LogIn, Activity, Bot } from 'lucide-react';
+import { ArrowDownCircle, ArrowUpCircle, LogIn, Activity, Bot, Database } from 'lucide-react';
 import api from '../api/client';
+import VisorBaseDatos from '../components/VisorBaseDatos';
 
 const PERIODOS = [
   { valor: 'dia', etiqueta: 'Hoy' },
@@ -26,6 +27,7 @@ export default function Dashboard() {
   const [logins, setLogins] = useState([]);
   const [vista, setVista] = useState('movimientos'); // 'movimientos' | 'logins'
   const [loading, setLoading] = useState(true);
+  const [visorAbierto, setVisorAbierto] = useState(false);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -59,7 +61,8 @@ export default function Dashboard() {
   ] : [];
 
   return (
-    <div>
+    <div className="flex-1 min-h-0 overflow-y-auto">
+      {/* v7.0: la página se desplaza si no cabe en pantallas pequeñas. */}
       <div className="mb-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">Auditoría</h1>
@@ -68,7 +71,16 @@ export default function Dashboard() {
           </p>
         </div>
 
-        <div className="flex bg-gray-100 dark:bg-gray-800 rounded-xl p-1 gap-1 self-start">
+        <div className="flex flex-wrap items-center gap-2 self-start">
+        {/* v7.0: visor de la base de datos, solo lectura (esta página ya es solo del Super Administrador). */}
+        <button
+          type="button"
+          onClick={() => setVisorAbierto(true)}
+          className="flex items-center gap-1.5 rounded-xl border border-brand-300 dark:border-brand-700 bg-brand-50 dark:bg-brand-900/30 px-3.5 py-2 text-xs font-semibold text-brand-800 dark:text-brand-200 hover:bg-brand-100 dark:hover:bg-brand-900/50"
+        >
+          <Database size={14} /> Base de datos
+        </button>
+        <div className="flex bg-gray-100 dark:bg-gray-800 rounded-xl p-1 gap-1">
           {PERIODOS.map((p) => (
             <button
               key={p.valor}
@@ -83,7 +95,10 @@ export default function Dashboard() {
             </button>
           ))}
         </div>
+        </div>
       </div>
+
+      <VisorBaseDatos open={visorAbierto} onClose={() => setVisorAbierto(false)} />
 
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 mb-6">
         {cards.map(({ label, value, icon: Icon, bg }) => (
@@ -141,8 +156,8 @@ export default function Dashboard() {
         </div>
 
         {vista === 'movimientos' ? (
-          <div className="overflow-x-auto max-h-[420px]">
-            <table className="w-full text-sm">
+          <div className="overflow-auto max-h-[420px]">
+            <table className="w-full min-w-[720px] text-sm">
               <thead className="bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400 text-[11px] uppercase sticky top-0">
                 <tr>
                   <th className="text-left px-5 py-2.5">Equipo</th>
@@ -180,8 +195,8 @@ export default function Dashboard() {
             </table>
           </div>
         ) : (
-          <div className="overflow-x-auto max-h-[420px]">
-            <table className="w-full text-sm">
+          <div className="overflow-auto max-h-[420px]">
+            <table className="w-full min-w-[720px] text-sm">
               <thead className="bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400 text-[11px] uppercase sticky top-0">
                 <tr>
                   <th className="text-left px-5 py-2.5">Usuario</th>

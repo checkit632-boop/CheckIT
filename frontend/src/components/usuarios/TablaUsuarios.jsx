@@ -41,7 +41,8 @@ function AccionesUsuario({ u, esPropio, isSuperAdmin, onEditar, onCambiarEstado,
 export default function TablaUsuarios({ usuarios, idUsuarioActual, isSuperAdmin, onEditar, onCambiarEstado, onEliminar }) {
   return (
     <div className="bg-surface dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
-      <table className="w-full text-sm">
+      <div className="overflow-x-auto">
+      <table className="w-full min-w-[860px] text-sm">
         <thead className="bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400 text-xs uppercase">
           <tr>{COLUMNAS.map((c) => <th key={c} className="text-left px-5 py-2.5">{c}</th>)}</tr>
         </thead>
@@ -72,6 +73,7 @@ export default function TablaUsuarios({ usuarios, idUsuarioActual, isSuperAdmin,
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

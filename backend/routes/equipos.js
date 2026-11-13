@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db/database');
 const { patronContiene } = require('../utils/busqueda');
+const { generarSerial } = require('../utils/serialGenerado');
 const { authRequired, requireRole, ROL_ADMIN, ROL_SUPER } = require('../middleware/auth');
 
 const router = express.Router();
@@ -54,6 +55,25 @@ router.get('/', (req, res) => {
     rows = db.prepare(`${SELECT_BASE} ORDER BY e.id_equipo DESC`).all();
   }
   res.json(rows);
+});
+
+// GET /api/equipos/serial-generado?id_marca=&modelo=&id_persona=&documento=
+// Propone un serial único de 5 caracteres para un equipo sin serial visible
+// (v7.0). No guarda nada: el equipo se crea después con POST, que vuelve a
+// comprobar que el serial no exista. El documento se toma de la persona
+// elegida (id_persona) o del que se está registrando (documento).
+router.get('/serial-generado', (req, res) => {
+  const marca = db.prepare('SELECT nombre_marca FROM marcas WHERE id_marca = ?').get(req.query.id_marca);
+  if (!marca) return res.status(400).json({ error: 'Elige primero la marca del equipo.' });
+  const persona = req.query.id_persona
+    ? db.prepare('SELECT numero_documento FROM personas WHERE id_persona = ?').get(req.query.id_persona)
+    : null;
+  const serial = generarSerial({
+    marca: marca.nombre_marca,
+    modelo: req.query.modelo,
+    documento: persona?.numero_documento || req.query.documento || '',
+  });
+  res.json({ serial });
 });
 
 // GET /api/equipos/serial/:serial

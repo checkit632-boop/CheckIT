@@ -10,7 +10,7 @@ const bcrypt = require('bcryptjs');
 const db = require('../db/database');
 const asyncHandler = require('../utils/asyncHandler');
 const { validarPassword, MENSAJE_PASSWORD } = require('../utils/validarPassword');
-const { authRequired, requireRole, ROL_SUPER, ROL_ADMIN, ROL_OPERADOR } = require('../middleware/auth');
+const { authRequired, requireRole, ROL_SUPER, ROL_ADMIN } = require('../middleware/auth');
 
 const router = express.Router();
 // Super Administrador y Administrador pueden entrar al módulo; la jerarquía
@@ -37,14 +37,9 @@ function userView(u) {
   };
 }
 
-// Roles que el usuario autenticado tiene permitido asignar/gestionar:
-// - Super Administrador -> puede crear/editar Administradores y Operadores.
-// - Administrador -> solo puede crear/editar Operadores de Sistema.
-function rolesGestionables(rolActual) {
-  if (rolActual === ROL_SUPER) return [ROL_ADMIN, ROL_OPERADOR];
-  if (rolActual === ROL_ADMIN) return [ROL_OPERADOR];
-  return [];
-}
+// Jerarquía de roles (utils/roles.js): el Super Administrador gestiona
+// Administradores y Operadores; el Administrador, solo Operadores.
+const { rolesGestionables } = require('../utils/roles');
 
 function nombreRolPorId(id_rol) {
   return db.prepare('SELECT nombre_rol FROM roles WHERE id_rol = ?').get(id_rol)?.nombre_rol;
@@ -56,7 +51,7 @@ router.get('/', asyncHandler((req, res) => {
     SELECT u.*, r.nombre_rol, td.nombre_documento FROM usuarios u
     JOIN roles r ON r.id_rol = u.id_rol
     LEFT JOIN tipos_documento td ON td.id_tipo_documento = u.id_tipo_documento
-    WHERE u.usuario <> 'sistema'
+    WHERE u.usuario <> 'sistema' AND u.anonimizado = 0
     ORDER BY u.id_usuario DESC
   `).all();
   res.json(rows.map(userView));

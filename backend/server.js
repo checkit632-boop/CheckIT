@@ -12,6 +12,8 @@ const equiposRoutes = require('./routes/equipos');
 const registrosRoutes = require('./routes/registros');
 const catalogosRoutes = require('./routes/catalogos');
 const dashboardRoutes = require('./routes/dashboard');
+const inactividadRoutes = require('./routes/inactividad');
+const visorRoutes = require('./routes/visor');
 // Al importarla se crea/migra el esquema; aquí se usa además para la
 // comprobación de /api/health.
 const db = require('./db/database');
@@ -90,6 +92,8 @@ app.use('/api/equipos', equiposRoutes);
 app.use('/api/registros', registrosRoutes);
 app.use('/api/catalogos', catalogosRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/inactividad', inactividadRoutes);
+app.use('/api/visor', visorRoutes);
 
 // Una ruta /api inexistente responde un 404 en JSON. Además evita que caiga
 // en la interfaz de abajo, que devolvería la página en lugar de un error.
