@@ -314,7 +314,7 @@ correos. Prueban el inicio de sesión con código, los roles, la entrada y la
 salida con accesorios, las lecturas repetidas, el código de contingencia, la
 cuenta inactivada a mitad del ingreso, el respaldo al arrancar y el cierre
 recuperado, y desde la v7.0 el serial generado, la limpieza por inactividad,
-el visor de la base y la migración desde la 6.11 (22 pruebas, unos 40
+el visor de la base y la migración desde la 6.11 (24 pruebas, unos 45
 segundos). Reemplazan a `backend/scripts/run_tests.sh`, que quedó
 desactualizado.
 
@@ -340,6 +340,11 @@ desactualizado.
   **Otra (escribir la marca)…**, se escribe y se pulsa **Agregar**: queda en el
   catálogo para los siguientes equipos. No se duplica si ya existe con otras
   mayúsculas o espacios, y queda en la auditoría.
+- **Registro de Equipos:** el contador **Total registrados** muestra todos
+  los equipos de la base (antes, solo los de la página); el aviso de la Ley
+  1581 se ve en una línea con el botón **más**; y el Administrador puede
+  **corregir los datos del responsable** desde el equipo (**Editar datos del
+  responsable**), con validación de documento único y registro en la auditoría.
 - **Barra de desplazamiento horizontal** en las tablas de todos los módulos
   cuando la pantalla es angosta, y desplazamiento vertical de la página.
 - **Visor de la base de datos** en Auditoría (solo Super Administrador): pide

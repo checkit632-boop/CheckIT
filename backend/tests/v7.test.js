@@ -627,3 +627,100 @@ test('marca nueva: cualquier rol la agrega, no se duplica con otras mayúsculas 
     );
   });
 });
+
+// ---------- Contador total y edición del responsable ----------
+test('equipos: total_general cuenta toda la base, aunque se pagine o se busque', async () => {
+  const total = conBase((db) => db.prepare('SELECT COUNT(*) FROM equipos').pluck().get());
+  const pagina = await pedir('GET', '/api/equipos?pagina=1&por_pagina=1', { token: ctx.admin });
+  assert.equal(pagina.datos.datos.length, 1);
+  assert.equal(pagina.datos.total_general, total);
+  const busqueda = await pedir('GET', '/api/equipos?pagina=1&por_pagina=25&q=MARCA-NUEVA', {
+    token: ctx.admin,
+  });
+  assert.equal(busqueda.datos.total, 1);
+  assert.equal(busqueda.datos.total_general, total);
+});
+
+test('persona: el Administrador corrige los datos del responsable, con validaciones y auditoría', async () => {
+  const p = await pedir('POST', '/api/personas', {
+    token: ctx.admin,
+    cuerpo: {
+      id_tipo_documento: ctx.tipos[0].id_tipo_documento,
+      numero_documento: '4001',
+      nombres: 'Jose',
+      apellidos: 'Perz',
+    },
+  });
+  await pedir('POST', '/api/personas', {
+    token: ctx.admin,
+    cuerpo: {
+      id_tipo_documento: ctx.tipos[0].id_tipo_documento,
+      numero_documento: '4002',
+      nombres: 'Otra',
+      apellidos: 'Persona',
+    },
+  });
+  const id = p.datos.id_persona;
+  const cuerpo = {
+    id_tipo_documento: ctx.tipos[1].id_tipo_documento,
+    numero_documento: ' 4001-B ',
+    nombres: ' José  ',
+    apellidos: 'Pérez',
+    correo: 'jose@correo.co',
+    celular: '3001234567',
+  };
+
+  assert.equal(
+    (await pedir('PUT', `/api/personas/${id}`, { token: ctx.tokenOpNuevo, cuerpo })).status,
+    403
+  );
+  assert.equal(
+    (await pedir('PUT', '/api/personas/999999', { token: ctx.admin, cuerpo })).status,
+    404
+  );
+  assert.equal(
+    (
+      await pedir('PUT', `/api/personas/${id}`, {
+        token: ctx.admin,
+        cuerpo: { ...cuerpo, nombres: '' },
+      })
+    ).status,
+    400
+  );
+  assert.equal(
+    (
+      await pedir('PUT', `/api/personas/${id}`, {
+        token: ctx.admin,
+        cuerpo: { ...cuerpo, correo: 'malo' },
+      })
+    ).status,
+    400
+  );
+  const dup = await pedir('PUT', `/api/personas/${id}`, {
+    token: ctx.admin,
+    cuerpo: { ...cuerpo, numero_documento: '4002' },
+  });
+  assert.equal(dup.status, 409);
+  assert.match(dup.datos.error, /otra persona/);
+
+  assert.equal(
+    (await pedir('PUT', `/api/personas/${id}`, { token: ctx.admin, cuerpo })).status,
+    200
+  );
+  const leida = await pedir('GET', `/api/personas/${id}`, { token: ctx.admin });
+  assert.equal(leida.datos.nombres, 'José');
+  assert.equal(leida.datos.numero_documento, '4001-B');
+  assert.equal(leida.datos.correo, 'jose@correo.co');
+  assert.equal(leida.datos.id_tipo_documento, ctx.tipos[1].id_tipo_documento);
+  assert.equal((await pedir('GET', '/api/personas/999999', { token: ctx.admin })).status, 404);
+  conBase((db) => {
+    const a = db
+      .prepare(
+        "SELECT descripcion FROM auditoria WHERE tabla_afectada = 'personas' ORDER BY id_auditoria DESC LIMIT 1"
+      )
+      .pluck()
+      .get();
+    assert.match(a, new RegExp(`persona #${id} actualizados`));
+    assert.doesNotMatch(a, /José|4001/);
+  });
+});

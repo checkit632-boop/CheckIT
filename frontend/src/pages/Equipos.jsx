@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Search, Plus, Pencil, Trash2, QrCode, Power, PowerOff, Wand2 } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, QrCode, Power, PowerOff, Wand2, UserPen } from 'lucide-react';
 import api from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
@@ -32,6 +32,8 @@ export default function Equipos() {
 
   const [equipos, setEquipos] = useState([]);
   const [totalEquipos, setTotalEquipos] = useState(0);
+  // v7.0: todos los equipos de la base (el contador antes mostraba solo los de la página).
+  const [totalGeneral, setTotalGeneral] = useState(0);
   const [pagina, setPagina] = useState(1);
   const [personasEncontradas, setPersonasEncontradas] = useState([]);
   const [marcas, setMarcas] = useState([]);
@@ -47,14 +49,18 @@ export default function Equipos() {
   const [nuevaPersona, setNuevaPersona] = useState(false);
   const [personaForm, setPersonaForm] = useState({ id_tipo_documento: 1, numero_documento: '', nombres: '', apellidos: '', correo: '', celular: '' });
   const [personaSearch, setPersonaSearch] = useState('');
+  // v7.0: edición de los datos del responsable desde el equipo (Administrador).
+  const [editarPersona, setEditarPersona] = useState(false);
+  const [personaEdit, setPersonaEdit] = useState(null);
+  const [tiposDocumento, setTiposDocumento] = useState([]);
 
   const busqueda = useDebounce(search.trim(), 300);
   const busquedaPersona = useDebounce(personaSearch.trim(), 300);
 
   // Catálogos del formulario: se cargan una sola vez.
   useEffect(() => {
-    Promise.all([api.get('/catalogos/marcas'), api.get('/catalogos/estados')])
-      .then(([mar, est]) => { setMarcas(mar.data); setEstados(est.data); })
+    Promise.all([api.get('/catalogos/marcas'), api.get('/catalogos/estados'), api.get('/catalogos/tipos-documento')])
+      .then(([mar, est, tip]) => { setMarcas(mar.data); setEstados(est.data); setTiposDocumento(tip.data); })
       .catch(() => showToast('Error al cargar los datos', 'error'));
   }, [showToast]);
 
@@ -68,6 +74,7 @@ export default function Equipos() {
       if (data.datos.length === 0 && pagina > 1) { setPagina(pagina - 1); return; }
       setEquipos(data.datos);
       setTotalEquipos(data.total);
+      setTotalGeneral(data.total_general ?? data.total);
     } catch (err) {
       showToast('Error al cargar los datos', 'error');
     }
@@ -94,6 +101,8 @@ export default function Equipos() {
     setNuevaPersona(false);
     setPersonaForm({ id_tipo_documento: 1, numero_documento: '', nombres: '', apellidos: '', correo: '', celular: '' });
     setPersonaSearch('');
+    setEditarPersona(false);
+    setPersonaEdit(null);
     setModalOpen(true);
   };
 
@@ -103,7 +112,28 @@ export default function Equipos() {
     setMarcaNueva('');
     setNuevaPersona(false);
     setPersonaSearch(`${eq.persona_nombres} ${eq.persona_apellidos}`);
+    setEditarPersona(false);
+    setPersonaEdit(null);
     setModalOpen(true);
+  };
+
+  // v7.0: abre los datos del responsable del equipo para corregirlos.
+  const abrirEdicionPersona = async () => {
+    if (editarPersona) { setEditarPersona(false); return; }
+    try {
+      const { data } = await api.get(`/personas/${form.id_persona}`);
+      setPersonaEdit({
+        id_tipo_documento: data.id_tipo_documento,
+        numero_documento: data.numero_documento || '',
+        nombres: data.nombres || '',
+        apellidos: data.apellidos || '',
+        correo: data.correo || '',
+        celular: data.celular || '',
+      });
+      setEditarPersona(true);
+    } catch (err) {
+      showToast(err.response?.data?.error || 'No se pudieron cargar los datos de la persona', 'error');
+    }
   };
 
   // v7.0: si eligió "Otra", agrega la marca escrita al catálogo (o toma la
@@ -167,6 +197,15 @@ export default function Equipos() {
         }
         const { data } = await api.post('/personas', personaForm);
         idPersona = data.id_persona;
+      }
+
+      // v7.0: datos corregidos del responsable. Se guardan antes del equipo;
+      // si el servidor los rechaza (p. ej. documento repetido), no se sigue.
+      if (!nuevaPersona && editarPersona && personaEdit && idPersona) {
+        if (!personaEdit.numero_documento.trim() || !personaEdit.nombres.trim() || !personaEdit.apellidos.trim()) {
+          showToast('Completa nombres, apellidos y documento del responsable', 'error'); return;
+        }
+        await api.put(`/personas/${idPersona}`, personaEdit);
       }
 
       if (!idPersona || !idMarca || !form.serial || !form.id_estado) {
@@ -235,7 +274,7 @@ export default function Equipos() {
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Gestiona el inventario de computadores del sistema</p>
         </div>
         <div className="bg-brand-50 dark:bg-brand-900/30 border border-brand-200 dark:border-brand-800 text-brand-800 dark:text-brand-200 rounded-xl px-4 py-2 text-sm font-bold">
-          Total registrados: {equipos.length}
+          Total registrados: {totalGeneral}
         </div>
       </div>
 
@@ -350,7 +389,7 @@ export default function Equipos() {
                   className={inputCls}
                   placeholder="Buscar por nombre o documento..."
                   value={personaSearch}
-                  onChange={(e) => { setPersonaSearch(e.target.value); setForm((f) => ({ ...f, id_persona: '' })); }}
+                  onChange={(e) => { setPersonaSearch(e.target.value); setForm((f) => ({ ...f, id_persona: '' })); setEditarPersona(false); }}
                 />
                 {personaSearch && !form.id_persona && (
                   <div className="mt-1 border border-gray-200 dark:border-gray-600 rounded-xl max-h-40 overflow-y-auto">
@@ -366,9 +405,39 @@ export default function Equipos() {
                     {filteredPersonas.length === 0 && <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">Sin resultados</div>}
                   </div>
                 )}
-                <button type="button" onClick={() => setNuevaPersona(true)} className="text-xs text-brand-700 font-semibold mt-1.5 hover:underline">
-                  + Registrar nueva persona
-                </button>
+                <div className="flex flex-wrap gap-x-4">
+                  <button type="button" onClick={() => setNuevaPersona(true)} className="text-xs text-brand-700 font-semibold mt-1.5 hover:underline">
+                    + Registrar nueva persona
+                  </button>
+                  {/* v7.0: corregir los datos del responsable (solo Administrador
+                      y Super Administrador, igual que en el servidor). */}
+                  {isAdmin && form.id_persona && (
+                    <button type="button" onClick={abrirEdicionPersona} className="flex items-center gap-1 text-xs text-brand-700 font-semibold mt-1.5 hover:underline">
+                      <UserPen size={13} /> {editarPersona ? 'Ocultar datos del responsable' : 'Editar datos del responsable'}
+                    </button>
+                  )}
+                </div>
+                {editarPersona && personaEdit && (
+                  <div className="border border-brand-200 dark:border-brand-800 rounded-xl p-3 mt-2 space-y-3 bg-brand-50/50 dark:bg-brand-900/20">
+                    <div className="grid grid-cols-2 gap-3">
+                      <input className={inputCls + ' mt-0'} placeholder="Nombres" aria-label="Nombres del responsable" value={personaEdit.nombres} onChange={(e) => setPersonaEdit((p) => ({ ...p, nombres: e.target.value }))} />
+                      <input className={inputCls + ' mt-0'} placeholder="Apellidos" aria-label="Apellidos del responsable" value={personaEdit.apellidos} onChange={(e) => setPersonaEdit((p) => ({ ...p, apellidos: e.target.value }))} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <select className={inputCls + ' mt-0'} aria-label="Tipo de documento" value={personaEdit.id_tipo_documento} onChange={(e) => setPersonaEdit((p) => ({ ...p, id_tipo_documento: e.target.value }))}>
+                        {tiposDocumento.map((t) => <option key={t.id_tipo_documento} value={t.id_tipo_documento}>{t.nombre_documento}</option>)}
+                      </select>
+                      <input className={inputCls + ' mt-0'} placeholder="N.° Documento" aria-label="Número de documento del responsable" value={personaEdit.numero_documento} onChange={(e) => setPersonaEdit((p) => ({ ...p, numero_documento: e.target.value }))} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <input className={inputCls + ' mt-0'} placeholder="Correo (opcional)" aria-label="Correo del responsable" value={personaEdit.correo} onChange={(e) => setPersonaEdit((p) => ({ ...p, correo: e.target.value }))} />
+                      <input className={inputCls + ' mt-0'} placeholder="Celular (opcional)" aria-label="Celular del responsable" value={personaEdit.celular} onChange={(e) => setPersonaEdit((p) => ({ ...p, celular: e.target.value }))} />
+                    </div>
+                    <p className="text-[11px] text-gray-600 dark:text-gray-400">
+                      Los cambios se guardan con <strong>Guardar Equipo</strong> y se aplican a todos los equipos de esta persona.
+                    </p>
+                  </div>
+                )}
               </>
             ) : (
               <div className="border border-gray-200 dark:border-gray-600 rounded-xl p-3 mt-1 space-y-3 bg-gray-50 dark:bg-gray-900">
