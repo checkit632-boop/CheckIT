@@ -15,7 +15,9 @@ router.get('/', (req, res) => {
   const condiciones = [];
   const params = [];
   if (q) {
-    condiciones.push(`(p.nombres || ' ' || p.apellidos || ' ' || p.numero_documento) LIKE ? ESCAPE '!'`);
+    condiciones.push(
+      `(p.nombres || ' ' || p.apellidos || ' ' || p.numero_documento) LIKE ? ESCAPE '!'`
+    );
     params.push(patronContiene(q));
   }
   let sql = `
@@ -34,7 +36,9 @@ router.get('/', (req, res) => {
 
 // GET /api/personas/documento/:numero
 router.get('/documento/:numero', (req, res) => {
-  const row = db.prepare('SELECT * FROM personas WHERE numero_documento = ?').get(req.params.numero);
+  const row = db
+    .prepare('SELECT * FROM personas WHERE numero_documento = ?')
+    .get(req.params.numero);
   if (!row) return res.status(404).json({ error: 'Persona no encontrada' });
   res.json(row);
 });
@@ -43,27 +47,108 @@ router.get('/documento/:numero', (req, res) => {
 router.post('/', (req, res) => {
   const { id_tipo_documento, numero_documento, nombres, apellidos, correo, celular } = req.body;
   if (!id_tipo_documento || !numero_documento || !nombres || !apellidos) {
-    return res.status(400).json({ error: 'Tipo de documento, número, nombres y apellidos son obligatorios' });
+    return res
+      .status(400)
+      .json({ error: 'Tipo de documento, número, nombres y apellidos son obligatorios' });
   }
-  const exists = db.prepare('SELECT * FROM personas WHERE numero_documento = ?').get(numero_documento);
-  if (exists) return res.status(409).json({ error: 'Ya existe una persona con ese documento', persona: exists });
+  const exists = db
+    .prepare('SELECT * FROM personas WHERE numero_documento = ?')
+    .get(numero_documento);
+  if (exists)
+    return res
+      .status(409)
+      .json({ error: 'Ya existe una persona con ese documento', persona: exists });
 
-  const info = db.prepare(`
+  const info = db
+    .prepare(
+      `
     INSERT INTO personas (id_tipo_documento, numero_documento, nombres, apellidos, correo, celular)
     VALUES (?, ?, ?, ?, ?, ?)
-  `).run(id_tipo_documento, numero_documento, nombres, apellidos, correo || null, celular || null);
+  `
+    )
+    .run(id_tipo_documento, numero_documento, nombres, apellidos, correo || null, celular || null);
 
   res.status(201).json({ id_persona: info.lastInsertRowid });
 });
 
+// GET /api/personas/:id — datos completos de una persona (v7.0: los usa la
+// edición del responsable desde Registro de Equipos).
+router.get('/:id', (req, res) => {
+  const row = db
+    .prepare(
+      `
+    SELECT p.*, td.nombre_documento FROM personas p
+    JOIN tipos_documento td ON td.id_tipo_documento = p.id_tipo_documento
+    WHERE p.id_persona = ?
+  `
+    )
+    .get(req.params.id);
+  if (!row) return res.status(404).json({ error: 'Persona no encontrada' });
+  res.json(row);
+});
+
+const CORREO_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const limpiar = (v) =>
+  String(v ?? '')
+    .trim()
+    .replace(/\s+/g, ' ');
+
 // PUT /api/personas/:id (Administrador o Super Administrador)
+// v7.0: valida igual que el registro (campos obligatorios, documento único,
+// correo con formato válido), responde 404 si la persona no existe y deja el
+// cambio en la auditoría sin copiar sus datos personales.
 router.put('/:id', requireRole(ROL_ADMIN, ROL_SUPER), (req, res) => {
   const { id } = req.params;
-  const { id_tipo_documento, numero_documento, nombres, apellidos, correo, celular } = req.body;
-  db.prepare(`
-    UPDATE personas SET id_tipo_documento=?, numero_documento=?, nombres=?, apellidos=?, correo=?, celular=?, fecha_actualizacion=CURRENT_TIMESTAMP
-    WHERE id_persona=?
-  `).run(id_tipo_documento, numero_documento, nombres, apellidos, correo || null, celular || null, id);
+  const actual = db.prepare('SELECT id_persona FROM personas WHERE id_persona = ?').get(id);
+  if (!actual) return res.status(404).json({ error: 'Persona no encontrada' });
+
+  const id_tipo_documento = Number(req.body.id_tipo_documento);
+  const numero_documento = limpiar(req.body.numero_documento);
+  const nombres = limpiar(req.body.nombres);
+  const apellidos = limpiar(req.body.apellidos);
+  const correo = limpiar(req.body.correo);
+  const celular = limpiar(req.body.celular);
+  if (!id_tipo_documento || !numero_documento || !nombres || !apellidos) {
+    return res
+      .status(400)
+      .json({ error: 'Tipo de documento, número, nombres y apellidos son obligatorios' });
+  }
+  if (
+    !db.prepare('SELECT 1 FROM tipos_documento WHERE id_tipo_documento = ?').get(id_tipo_documento)
+  ) {
+    return res.status(400).json({ error: 'El tipo de documento no es válido' });
+  }
+  if (correo && !CORREO_REGEX.test(correo)) {
+    return res.status(400).json({ error: 'El correo no tiene un formato válido' });
+  }
+  const otra = db
+    .prepare('SELECT 1 FROM personas WHERE numero_documento = ? AND id_persona <> ?')
+    .get(numero_documento, id);
+  if (otra)
+    return res.status(409).json({ error: 'Ya existe otra persona con ese número de documento' });
+
+  db.transaction(() => {
+    db.prepare(
+      `
+      UPDATE personas SET id_tipo_documento=?, numero_documento=?, nombres=?, apellidos=?, correo=?, celular=?, fecha_actualizacion=CURRENT_TIMESTAMP
+      WHERE id_persona=?
+    `
+    ).run(
+      id_tipo_documento,
+      numero_documento,
+      nombres,
+      apellidos,
+      correo || null,
+      celular || null,
+      id
+    );
+    db.prepare(
+      `INSERT INTO auditoria (id_usuario, accion, tabla_afectada, descripcion) VALUES (?, 'UPDATE', 'personas', ?)`
+    ).run(
+      req.user.id_usuario,
+      `Datos de la persona #${id} actualizados por ${req.user.usuario} desde Registro de Equipos`
+    );
+  })();
   res.json({ message: 'Persona actualizada' });
 });
 

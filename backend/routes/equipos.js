@@ -43,7 +43,10 @@ router.get('/', (req, res) => {
     `).pluck().get(...params);
     const datos = db.prepare(`${SELECT_BASE} ${filtro} ORDER BY e.id_equipo DESC LIMIT ? OFFSET ?`)
       .all(...params, porPagina, (pagina - 1) * porPagina);
-    return res.json({ datos, total, pagina, por_pagina: porPagina });
+    // total_general (v7.0): todos los equipos de la base, sin importar la
+    // búsqueda; lo muestra el contador "Total registrados".
+    const totalGeneral = db.prepare('SELECT COUNT(*) FROM equipos').pluck().get();
+    return res.json({ datos, total, total_general: totalGeneral, pagina, por_pagina: porPagina });
   }
 
   let rows;
