@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db/database');
 const { patronContiene } = require('../utils/busqueda');
+const { formatoNombre } = require('../utils/nombres');
 const { authRequired, requireRole, ROL_ADMIN, ROL_SUPER } = require('../middleware/auth');
 
 const router = express.Router();
@@ -21,7 +22,9 @@ router.get('/', (req, res) => {
     params.push(patronContiene(q));
   }
   let sql = `
-    SELECT p.*, td.nombre_documento FROM personas p
+    SELECT p.*, td.nombre_documento,
+           (SELECT COUNT(*) FROM equipos e WHERE e.id_persona = p.id_persona) AS equipos
+    FROM personas p
     JOIN tipos_documento td ON td.id_tipo_documento = p.id_tipo_documento
     ${condiciones.length ? `WHERE ${condiciones.join(' AND ')}` : ''}
     ORDER BY p.id_persona DESC
@@ -45,7 +48,12 @@ router.get('/documento/:numero', (req, res) => {
 
 // POST /api/personas (ambos roles pueden registrar personas)
 router.post('/', (req, res) => {
-  const { id_tipo_documento, numero_documento, nombres, apellidos, correo, celular } = req.body;
+  const { id_tipo_documento, correo, celular } = req.body;
+  // v7.0: documento sin espacios de más; nombres y apellidos con mayúscula
+  // inicial en cada palabra (utils/nombres.js).
+  const numero_documento = limpiar(req.body.numero_documento);
+  const nombres = formatoNombre(req.body.nombres);
+  const apellidos = formatoNombre(req.body.apellidos);
   if (!id_tipo_documento || !numero_documento || !nombres || !apellidos) {
     return res
       .status(400)
@@ -77,7 +85,9 @@ router.get('/:id', (req, res) => {
   const row = db
     .prepare(
       `
-    SELECT p.*, td.nombre_documento FROM personas p
+    SELECT p.*, td.nombre_documento,
+           (SELECT COUNT(*) FROM equipos e WHERE e.id_persona = p.id_persona) AS equipos
+    FROM personas p
     JOIN tipos_documento td ON td.id_tipo_documento = p.id_tipo_documento
     WHERE p.id_persona = ?
   `
@@ -104,8 +114,8 @@ router.put('/:id', requireRole(ROL_ADMIN, ROL_SUPER), (req, res) => {
 
   const id_tipo_documento = Number(req.body.id_tipo_documento);
   const numero_documento = limpiar(req.body.numero_documento);
-  const nombres = limpiar(req.body.nombres);
-  const apellidos = limpiar(req.body.apellidos);
+  const nombres = formatoNombre(req.body.nombres);
+  const apellidos = formatoNombre(req.body.apellidos);
   const correo = limpiar(req.body.correo);
   const celular = limpiar(req.body.celular);
   if (!id_tipo_documento || !numero_documento || !nombres || !apellidos) {
@@ -153,8 +163,26 @@ router.put('/:id', requireRole(ROL_ADMIN, ROL_SUPER), (req, res) => {
 });
 
 // DELETE /api/personas/:id (Administrador o Super Administrador)
+// v7.0: solo se elimina una persona que no tiene equipos (por ejemplo, una
+// que quedó registrada sin su equipo). Responde 404 si no existe y deja el
+// hecho en la auditoría sin copiar sus datos personales.
 router.delete('/:id', requireRole(ROL_ADMIN, ROL_SUPER), (req, res) => {
-  db.prepare('DELETE FROM personas WHERE id_persona = ?').run(req.params.id);
+  const { id } = req.params;
+  if (!db.prepare('SELECT 1 FROM personas WHERE id_persona = ?').get(id)) {
+    return res.status(404).json({ error: 'Persona no encontrada' });
+  }
+  const equipos = db.prepare('SELECT COUNT(*) FROM equipos WHERE id_persona = ?').pluck().get(id);
+  if (equipos > 0) {
+    return res.status(409).json({
+      error: `No se puede eliminar: la persona tiene ${equipos} equipo(s). Elimina o reasigna primero sus equipos.`,
+    });
+  }
+  db.transaction(() => {
+    db.prepare('DELETE FROM personas WHERE id_persona = ?').run(id);
+    db.prepare(
+      `INSERT INTO auditoria (id_usuario, accion, tabla_afectada, descripcion) VALUES (?, 'DELETE', 'personas', ?)`
+    ).run(req.user.id_usuario, `Persona #${id} sin equipos eliminada por ${req.user.usuario}`);
+  })();
   res.json({ message: 'Persona eliminada' });
 });
 

@@ -314,7 +314,7 @@ correos. Prueban el inicio de sesión con código, los roles, la entrada y la
 salida con accesorios, las lecturas repetidas, el código de contingencia, la
 cuenta inactivada a mitad del ingreso, el respaldo al arrancar y el cierre
 recuperado, y desde la v7.0 el serial generado, la limpieza por inactividad,
-el visor de la base y la migración desde la 6.11 (24 pruebas, unos 45
+el visor de la base y la migración desde la 6.11 (27 pruebas, unos 50
 segundos). Reemplazan a `backend/scripts/run_tests.sh`, que quedó
 desactualizado.
 
@@ -345,6 +345,13 @@ desactualizado.
   1581 se ve en una línea con el botón **más**; y el Administrador puede
   **corregir los datos del responsable** desde el equipo (**Editar datos del
   responsable**), con validación de documento único y registro en la auditoría.
+- **Nombres con mayúscula inicial:** nombres y apellidos de las personas se
+  guardan con la primera letra de cada palabra en mayúscula (las partículas
+  "de", "del", "la"… en minúscula). Al actualizar, los ya registrados se
+  corrigen una sola vez. **El buscador de Registro de Equipos** muestra también
+  las personas que coinciden, aunque no tengan equipos, para agregarles uno,
+  editarlas o eliminarlas (solo sin equipos). **Enter** acepta la ventana de
+  salida; el Enter que envía la pistola al leer otro código no la acepta.
 - **Barra de desplazamiento horizontal** en las tablas de todos los módulos
   cuando la pantalla es angosta, y desplazamiento vertical de la página.
 - **Visor de la base de datos** en Auditoría (solo Super Administrador): pide

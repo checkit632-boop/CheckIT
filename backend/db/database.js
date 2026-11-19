@@ -109,6 +109,30 @@ function migrate() {
   }
 
   migrarFechasAUtc();
+  formatearNombresExistentes();
+}
+
+// v7.0: los nombres y apellidos de personas ya registradas pasan al formato
+// "Mayúscula inicial" (utils/nombres.js), igual que los nuevos. Se ejecuta una
+// sola vez por base (PRAGMA user_version pasa a 2) y solo toca las filas que
+// cambian.
+function formatearNombresExistentes() {
+  if (db.pragma('user_version', { simple: true }) >= 2) return;
+  const { formatoNombre } = require('../utils/nombres');
+  const actualizar = db.prepare('UPDATE personas SET nombres = ?, apellidos = ? WHERE id_persona = ?');
+  let cambiadas = 0;
+  db.transaction(() => {
+    for (const p of db.prepare('SELECT id_persona, nombres, apellidos FROM personas').all()) {
+      const nombres = formatoNombre(p.nombres);
+      const apellidos = formatoNombre(p.apellidos);
+      if (nombres !== p.nombres || apellidos !== p.apellidos) {
+        actualizar.run(nombres, apellidos, p.id_persona);
+        cambiadas++;
+      }
+    }
+    db.pragma('user_version = 2');
+  })();
+  if (cambiadas > 0) console.log(`✔ ${cambiadas} persona(s) con nombres o apellidos pasados a mayúscula inicial.`);
 }
 
 // Auditoría 3.2: unificar registros.fecha_hora en UTC. Se ejecuta una sola
