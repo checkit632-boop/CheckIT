@@ -8,6 +8,8 @@ import EquipmentQRModal from '../components/EquipmentQRModal';
 import useDebounce from '../hooks/useDebounce';
 import AvisoPrivacidad from '../components/AvisoPrivacidad';
 import { useConfirmacion } from '../context/ConfirmContext';
+import PersonaModal from '../components/equipos/PersonaModal';
+import { formatoNombre } from '../utils/nombres';
 
 // Equipos por página del inventario (la paginación y la búsqueda las hace el
 // servidor: la pantalla ya no descarga todo el inventario ni todas las
@@ -53,6 +55,10 @@ export default function Equipos() {
   const [editarPersona, setEditarPersona] = useState(false);
   const [personaEdit, setPersonaEdit] = useState(null);
   const [tiposDocumento, setTiposDocumento] = useState([]);
+  // v7.0: personas que coinciden con la búsqueda y la que se está editando.
+  const [personasBusqueda, setPersonasBusqueda] = useState([]);
+  const [personaAbierta, setPersonaAbierta] = useState(null);
+  const cerrarPersona = useCallback(() => setPersonaAbierta(null), []);
 
   const busqueda = useDebounce(search.trim(), 300);
   const busquedaPersona = useDebounce(personaSearch.trim(), 300);
@@ -185,6 +191,10 @@ export default function Equipos() {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    // v7.0: si la persona nueva se guarda pero el equipo falla (p. ej. serial
+    // repetido), la persona queda elegida para reintentar; antes, al volver a
+    // guardar, se intentaba crearla otra vez y quedaba registrada sin equipo.
+    let personaCreada = null;
     try {
       let idPersona = form.id_persona;
       // Primero la marca nueva (si eligió "Otra"): si falla, no se crea nada.
@@ -197,6 +207,7 @@ export default function Equipos() {
         }
         const { data } = await api.post('/personas', personaForm);
         idPersona = data.id_persona;
+        personaCreada = { id_persona: data.id_persona, etiqueta: `${formatoNombre(personaForm.nombres)} ${formatoNombre(personaForm.apellidos)} — ${personaForm.numero_documento.trim()}` };
       }
 
       // v7.0: datos corregidos del responsable. Se guardan antes del equipo;
@@ -221,9 +232,34 @@ export default function Equipos() {
       }
       setModalOpen(false);
       loadAll();
+      cargarPersonasBusqueda();
     } catch (err) {
-      showToast(err.response?.data?.error || 'No se pudo guardar el equipo', 'error');
+      if (personaCreada) {
+        setNuevaPersona(false);
+        setForm((f) => ({ ...f, id_persona: personaCreada.id_persona }));
+        setPersonaSearch(personaCreada.etiqueta);
+        showToast(`${err.response?.data?.error || 'No se pudo guardar el equipo'}. La persona ya quedó registrada: corrige el equipo y guarda de nuevo.`, 'error');
+      } else {
+        showToast(err.response?.data?.error || 'No se pudo guardar el equipo', 'error');
+      }
     }
+  };
+
+  // v7.0: al buscar, también se muestran las personas que coinciden (con o
+  // sin equipos), para agregarles un equipo, corregirlas o eliminarlas.
+  const cargarPersonasBusqueda = useCallback(() => {
+    if (!busqueda) { setPersonasBusqueda([]); return; }
+    api.get('/personas', { params: { q: busqueda, limit: 20 } })
+      .then(({ data }) => setPersonasBusqueda(data))
+      .catch(() => setPersonasBusqueda([]));
+  }, [busqueda]);
+
+  useEffect(() => { cargarPersonasBusqueda(); }, [cargarPersonasBusqueda]);
+
+  const agregarEquipoA = (p) => {
+    openNew();
+    setForm((f) => ({ ...f, id_persona: p.id_persona }));
+    setPersonaSearch(`${p.nombres} ${p.apellidos} — ${p.numero_documento}`);
   };
 
   const handleDelete = async (eq) => {
@@ -379,6 +415,62 @@ export default function Equipos() {
         </div>
       </div>
 
+      {/* v7.0: personas que coinciden con la búsqueda, también las que no
+          tienen equipos (p. ej. una que quedó registrada sin su equipo). */}
+      {busqueda && personasBusqueda.length > 0 && (
+        <div className="mt-4 bg-surface dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+          <div className="px-5 py-3 border-b border-gray-100 dark:border-gray-700 font-bold text-gray-900 dark:text-gray-100 text-sm">
+            Personas que coinciden con «{busqueda}» ({personasBusqueda.length})
+          </div>
+          <div className="overflow-auto max-h-[320px]">
+            <table className="w-full min-w-[720px] text-sm whitespace-nowrap">
+              <thead className="bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400 text-xs uppercase sticky top-0">
+                <tr>
+                  <th className="text-left px-5 py-2.5">Persona</th>
+                  <th className="text-left px-5 py-2.5">Documento</th>
+                  <th className="text-left px-5 py-2.5">Contacto</th>
+                  <th className="text-left px-5 py-2.5">Equipos</th>
+                  <th className="text-left px-5 py-2.5">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50 dark:divide-gray-700 text-gray-800 dark:text-gray-200">
+                {personasBusqueda.map((p) => (
+                  <tr key={p.id_persona} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <td className="px-5 py-2.5 font-semibold">{p.nombres} {p.apellidos}</td>
+                    <td className="px-5 py-2.5">{p.nombre_documento}: <span className="font-mono-num">{p.numero_documento}</span></td>
+                    <td className="px-5 py-2.5 text-xs text-gray-600 dark:text-gray-400">{[p.celular, p.correo].filter(Boolean).join(' · ') || '—'}</td>
+                    <td className="px-5 py-2.5">
+                      {p.equipos > 0
+                        ? <span>{p.equipos}</span>
+                        : <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300">Sin equipos</span>}
+                    </td>
+                    <td className="px-5 py-2.5">
+                      <div className="flex gap-2">
+                        <button onClick={() => agregarEquipoA(p)} className="flex items-center gap-1 text-brand-700 dark:text-brand-300 bg-brand-100 dark:bg-brand-900/40 hover:bg-brand-200 dark:hover:bg-brand-900/60 px-2.5 py-1 rounded-lg text-xs font-semibold">
+                          <Plus size={13} /> Agregar equipo
+                        </button>
+                        {isAdmin && (
+                          <button onClick={() => setPersonaAbierta(p.id_persona)} aria-label={`Editar o eliminar a ${p.nombres} ${p.apellidos}`} className="flex items-center gap-1 text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 px-2.5 py-1 rounded-lg text-xs font-semibold">
+                            <UserPen size={13} /> Editar o eliminar
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <PersonaModal
+        idPersona={personaAbierta}
+        tiposDocumento={tiposDocumento}
+        onClose={cerrarPersona}
+        onCambio={() => { loadAll(); cargarPersonasBusqueda(); }}
+      />
+
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editingId ? 'Editar Equipo' : 'Nuevo Equipo'}>
         <form onSubmit={handleSave} className="space-y-4">
           <div>
@@ -420,8 +512,8 @@ export default function Equipos() {
                 {editarPersona && personaEdit && (
                   <div className="border border-brand-200 dark:border-brand-800 rounded-xl p-3 mt-2 space-y-3 bg-brand-50/50 dark:bg-brand-900/20">
                     <div className="grid grid-cols-2 gap-3">
-                      <input className={inputCls + ' mt-0'} placeholder="Nombres" aria-label="Nombres del responsable" value={personaEdit.nombres} onChange={(e) => setPersonaEdit((p) => ({ ...p, nombres: e.target.value }))} />
-                      <input className={inputCls + ' mt-0'} placeholder="Apellidos" aria-label="Apellidos del responsable" value={personaEdit.apellidos} onChange={(e) => setPersonaEdit((p) => ({ ...p, apellidos: e.target.value }))} />
+                      <input className={inputCls + ' mt-0'} placeholder="Nombres" aria-label="Nombres del responsable" value={personaEdit.nombres} onChange={(e) => setPersonaEdit((p) => ({ ...p, nombres: e.target.value }))} onBlur={() => setPersonaEdit((p) => ({ ...p, nombres: formatoNombre(p.nombres) }))} />
+                      <input className={inputCls + ' mt-0'} placeholder="Apellidos" aria-label="Apellidos del responsable" value={personaEdit.apellidos} onChange={(e) => setPersonaEdit((p) => ({ ...p, apellidos: e.target.value }))} onBlur={() => setPersonaEdit((p) => ({ ...p, apellidos: formatoNombre(p.apellidos) }))} />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <select className={inputCls + ' mt-0'} aria-label="Tipo de documento" value={personaEdit.id_tipo_documento} onChange={(e) => setPersonaEdit((p) => ({ ...p, id_tipo_documento: e.target.value }))}>
@@ -442,8 +534,8 @@ export default function Equipos() {
             ) : (
               <div className="border border-gray-200 dark:border-gray-600 rounded-xl p-3 mt-1 space-y-3 bg-gray-50 dark:bg-gray-900">
                 <div className="grid grid-cols-2 gap-3">
-                  <input className={inputCls + ' mt-0'} placeholder="Nombres" value={personaForm.nombres} onChange={(e) => setPersonaForm((f) => ({ ...f, nombres: e.target.value }))} />
-                  <input className={inputCls + ' mt-0'} placeholder="Apellidos" value={personaForm.apellidos} onChange={(e) => setPersonaForm((f) => ({ ...f, apellidos: e.target.value }))} />
+                  <input className={inputCls + ' mt-0'} placeholder="Nombres" value={personaForm.nombres} onChange={(e) => setPersonaForm((f) => ({ ...f, nombres: e.target.value }))} onBlur={() => setPersonaForm((f) => ({ ...f, nombres: formatoNombre(f.nombres) }))} />
+                  <input className={inputCls + ' mt-0'} placeholder="Apellidos" value={personaForm.apellidos} onChange={(e) => setPersonaForm((f) => ({ ...f, apellidos: e.target.value }))} onBlur={() => setPersonaForm((f) => ({ ...f, apellidos: formatoNombre(f.apellidos) }))} />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <input className={inputCls + ' mt-0'} placeholder="N.° Documento" value={personaForm.numero_documento} onChange={(e) => setPersonaForm((f) => ({ ...f, numero_documento: e.target.value }))} />

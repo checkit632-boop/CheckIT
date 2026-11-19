@@ -6,6 +6,11 @@ import { PackageCheck } from 'lucide-react';
 import Modal from '../Modal';
 import { fmtHora } from '../../utils/fechas';
 
+// Un Enter a menos de esto del último carácter viene de la pistola (sus
+// caracteres llegan cada 5–30 ms; una persona tarda mucho más en pulsar Enter).
+const ENTER_PISTOLA_MS = 100;
+const ESPERA_APERTURA_MS = 400;
+
 export default function AccesoriosSalidaModal({ salida, enviando, onAceptar, onCancelar }) {
   const contenedorRef = useRef(null);
   const abierto = Boolean(salida);
@@ -17,6 +22,34 @@ export default function AccesoriosSalidaModal({ salida, enviando, onAceptar, onC
   useEffect(() => {
     if (abierto) contenedorRef.current?.focus();
   }, [abierto]);
+
+  // v7.0: la tecla Enter acepta la salida. Para que la pistola no la acepte
+  // por error, se ignora el Enter que llega pegado a una ráfaga de caracteres
+  // (la pistola escribe el código en pocos milisegundos y termina con Enter)
+  // y el de los primeros 400 ms después de abrir la ventana.
+  const aceptarRef = useRef(onAceptar);
+  aceptarRef.current = onAceptar;
+  useEffect(() => {
+    if (!abierto) return undefined;
+    const abiertaEn = performance.now();
+    let ultimoCaracter = -Infinity;
+    const alPresionar = (e) => {
+      const ahora = performance.now();
+      if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        ultimoCaracter = ahora;
+        return;
+      }
+      if (e.key !== 'Enter') return;
+      // Siempre se detiene: así el Enter no activa otro botón con foco.
+      e.preventDefault();
+      e.stopPropagation();
+      const esPistola = ahora - ultimoCaracter <= ENTER_PISTOLA_MS;
+      if (esPistola || ahora - abiertaEn < ESPERA_APERTURA_MS || enviando) return;
+      aceptarRef.current();
+    };
+    window.addEventListener('keydown', alPresionar, true);
+    return () => window.removeEventListener('keydown', alPresionar, true);
+  }, [abierto, enviando]);
 
   return (
     <Modal open={abierto} onClose={onCancelar} title="Registrar salida" maxWidth="max-w-md">
@@ -60,7 +93,7 @@ export default function AccesoriosSalidaModal({ salida, enviando, onAceptar, onC
             </p>
           )}
           <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
-            Verifica que la persona salga con estos accesorios y pulsa Aceptar para registrar la salida.
+            Verifica que la persona salga con estos accesorios y pulsa Aceptar (o la tecla Enter) para registrar la salida.
           </p>
 
           <div className="flex gap-3 mt-5">
@@ -78,7 +111,7 @@ export default function AccesoriosSalidaModal({ salida, enviando, onAceptar, onC
               disabled={enviando}
               className="flex-1 bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm py-2.5 rounded-xl transition-colors disabled:opacity-60"
             >
-              Aceptar
+              Aceptar <span className="ml-1 text-[11px] font-normal opacity-80">(Enter)</span>
             </button>
           </div>
         </div>

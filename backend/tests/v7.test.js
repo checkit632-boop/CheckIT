@@ -724,3 +724,109 @@ test('persona: el Administrador corrige los datos del responsable, con validacio
     assert.doesNotMatch(a, /José|4001/);
   });
 });
+
+// ---------- Nombres con mayúscula inicial y personas sin equipos ----------
+test('personas: nombres y apellidos se guardan con mayúscula inicial al crear y al editar', async () => {
+  const p = await pedir('POST', '/api/personas', {
+    token: ctx.tokenOpNuevo,
+    cuerpo: {
+      id_tipo_documento: ctx.tipos[0].id_tipo_documento,
+      numero_documento: ' 5001 ',
+      nombres: 'maría  DE LOS ángeles',
+      apellidos: 'ÑUSTES-pérez',
+    },
+  });
+  assert.equal(p.status, 201);
+  let leida = (await pedir('GET', `/api/personas/${p.datos.id_persona}`, { token: ctx.admin }))
+    .datos;
+  assert.equal(leida.nombres, 'María de los Ángeles');
+  assert.equal(leida.apellidos, 'Ñustes-Pérez');
+  assert.equal(leida.numero_documento, '5001');
+  await pedir('PUT', `/api/personas/${p.datos.id_persona}`, {
+    token: ctx.admin,
+    cuerpo: {
+      id_tipo_documento: ctx.tipos[0].id_tipo_documento,
+      numero_documento: '5001',
+      nombres: 'JUAN carlos',
+      apellidos: 'gómez',
+    },
+  });
+  leida = (await pedir('GET', `/api/personas/${p.datos.id_persona}`, { token: ctx.admin })).datos;
+  assert.equal(`${leida.nombres} ${leida.apellidos}`, 'Juan Carlos Gómez');
+  ctx.idSinEquipo = p.datos.id_persona;
+});
+
+test('personas: la búsqueda trae a las personas sin equipos y solo se pueden eliminar si no tienen equipos', async () => {
+  const busqueda = (await pedir('GET', '/api/personas?q=5001&limit=20', { token: ctx.admin }))
+    .datos;
+  assert.equal(busqueda.length, 1);
+  assert.equal(busqueda[0].equipos, 0);
+  const conEquipo = (await pedir('GET', '/api/personas?q=3001&limit=20', { token: ctx.admin }))
+    .datos[0];
+  assert.ok(conEquipo.equipos >= 1);
+
+  assert.equal(
+    (await pedir('DELETE', `/api/personas/${ctx.idSinEquipo}`, { token: ctx.tokenOpNuevo })).status,
+    403
+  );
+  const bloqueada = await pedir('DELETE', `/api/personas/${conEquipo.id_persona}`, {
+    token: ctx.admin,
+  });
+  assert.equal(bloqueada.status, 409);
+  assert.match(bloqueada.datos.error, /tiene 1 equipo/);
+  assert.equal((await pedir('DELETE', '/api/personas/999999', { token: ctx.admin })).status, 404);
+  assert.equal(
+    (await pedir('DELETE', `/api/personas/${ctx.idSinEquipo}`, { token: ctx.admin })).status,
+    200
+  );
+  assert.equal(
+    (await pedir('GET', `/api/personas/${ctx.idSinEquipo}`, { token: ctx.admin })).status,
+    404
+  );
+  conBase((db) => {
+    assert.ok(
+      db
+        .prepare(
+          `SELECT 1 FROM auditoria WHERE tabla_afectada = 'personas' AND descripcion LIKE 'Persona #${ctx.idSinEquipo} sin equipos eliminada%'`
+        )
+        .get()
+    );
+  });
+});
+
+test('migración: los nombres ya guardados pasan a mayúscula inicial una sola vez', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'checkit-nombres-'));
+  const ruta = path.join(dir, 'db', 'checkit.db');
+  fs.mkdirSync(path.dirname(ruta));
+  const vieja = new Database(ruta);
+  vieja.exec(`
+    CREATE TABLE tipos_documento (id_tipo_documento INTEGER PRIMARY KEY AUTOINCREMENT, nombre_documento TEXT NOT NULL UNIQUE);
+    INSERT INTO tipos_documento (nombre_documento) VALUES ('Cédula de ciudadanía');
+    CREATE TABLE personas (id_persona INTEGER PRIMARY KEY AUTOINCREMENT, id_tipo_documento INTEGER NOT NULL, numero_documento TEXT NOT NULL UNIQUE,
+      nombres TEXT NOT NULL, apellidos TEXT NOT NULL, correo TEXT, celular TEXT, fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP, fecha_actualizacion DATETIME);
+    INSERT INTO personas (id_tipo_documento, numero_documento, nombres, apellidos) VALUES (1, '1', 'carlos andrés', 'ROJAS DE LA cruz');
+    INSERT INTO personas (id_tipo_documento, numero_documento, nombres, apellidos) VALUES (1, '2', 'Ana', 'Ruiz');
+    PRAGMA user_version = 1;
+  `);
+  vieja.close();
+  const salida = execFileSync(process.execPath, ['-e', "require('./db/database')"], {
+    cwd: BACKEND,
+    env: { ...ENV, CHECKIT_DB_PATH: ruta },
+    encoding: 'utf8',
+  });
+  assert.match(salida, /1 persona\(s\) con nombres/);
+  const db = new Database(ruta, { readonly: true });
+  try {
+    assert.deepEqual(
+      db.prepare('SELECT nombres, apellidos FROM personas ORDER BY id_persona').all(),
+      [
+        { nombres: 'Carlos Andrés', apellidos: 'Rojas de la Cruz' },
+        { nombres: 'Ana', apellidos: 'Ruiz' },
+      ]
+    );
+    assert.equal(db.pragma('user_version', { simple: true }), 2);
+  } finally {
+    db.close();
+    fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5 });
+  }
+});
