@@ -5,10 +5,12 @@
 // portátil en el centro varios días). Para que el vigilante sepa que esos
 // equipos en realidad no salieron por la portería, al iniciar sesión se le
 // muestra esta ventana con los equipos del último cierre y su propietario.
-// Se abre sola una vez por inicio de sesión; después queda un aviso en la
-// pantalla para volver a consultarla.
+// Se abre sola una vez por inicio de sesión. v7.0: al pulsar "Entendido" se
+// cierra y no deja franja de aviso; queda una campana junto a la hora, con
+// el número de equipos del último cierre, para volver a consultarla. El
+// historial de otras fechas está en Auditoría > Quedaron dentro.
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Search } from 'lucide-react';
+import { AlertTriangle, Bell, Search } from 'lucide-react';
 import api from '../../api/client';
 import Modal from '../Modal';
 import { fmtHora } from '../../utils/fechas';
@@ -35,12 +37,15 @@ export default function AlertaCierresAutomaticos({ onAbiertaCambio }) {
   const [datos, setDatos] = useState({ fecha_reinicio: null, equipos: [] });
   const [abierta, setAbierta] = useState(false);
   const [busqueda, setBusqueda] = useState('');
+  const [vista, setVista] = useState(true);
 
   useEffect(() => {
     api.get('/registros/cierres-automaticos')
       .then(({ data }) => {
         setDatos(data);
-        if (data.equipos.length > 0 && !yaVista(claveSesion(data.fecha_reinicio))) setAbierta(true);
+        const pendiente = data.equipos.length > 0 && !yaVista(claveSesion(data.fecha_reinicio));
+        setVista(!pendiente);
+        if (pendiente) setAbierta(true);
       })
       .catch(() => {});
   }, []);
@@ -50,6 +55,7 @@ export default function AlertaCierresAutomaticos({ onAbiertaCambio }) {
 
   const cerrar = () => {
     marcarVista(claveSesion(datos.fecha_reinicio));
+    setVista(true);
     setAbierta(false);
   };
 
@@ -63,26 +69,37 @@ export default function AlertaCierresAutomaticos({ onAbiertaCambio }) {
   }, [datos.equipos, busqueda]);
 
   const total = datos.equipos.length;
-  if (total === 0) return null;
+  const titulo = total > 0
+    ? `${total} ${total === 1 ? 'equipo quedó' : 'equipos quedaron'} dentro en el cierre del ${fmtHora(datos.fecha_reinicio)}`
+    : 'Sin avisos: ningún equipo quedó dentro en el último cierre';
 
   return (
     <>
-      {/* Aviso permanente mientras haya cierres en el último reinicio. */}
-      <div className="shrink-0 mb-3 flex items-center gap-3 rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-4 py-2 text-sm text-amber-900 dark:text-amber-200">
-        <AlertTriangle size={16} className="shrink-0" />
-        <span className="flex-1">
-          <strong>{total} {total === 1 ? 'equipo quedó' : 'equipos quedaron'} dentro</strong> y el sistema les registró la salida automáticamente en el cierre del {fmtHora(datos.fecha_reinicio)}.
-        </span>
-        <button
-          type="button"
-          onClick={() => setAbierta(true)}
-          className="shrink-0 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-xs font-semibold px-3 py-1.5"
-        >
-          Ver equipos
-        </button>
-      </div>
+      {/* v7.0: campana de avisos junto a la hora (antes, una franja fija). */}
+      <button
+        type="button"
+        onClick={() => setAbierta(true)}
+        title={titulo}
+        aria-label={titulo}
+        className="relative shrink-0 flex items-center justify-center w-11 h-11 rounded-2xl bg-surface dark:bg-gray-800 border border-gray-100/80 dark:border-gray-700 shadow-sm text-gray-600 dark:text-gray-300 hover:text-amber-700 dark:hover:text-amber-300"
+      >
+        <Bell size={20} className={total > 0 && !vista ? 'text-amber-600 dark:text-amber-400' : ''} />
+        {total > 0 && (
+          <span className={`absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full text-[11px] font-bold flex items-center justify-center text-white ${vista ? 'bg-gray-500' : 'bg-red-600'}`}>
+            {total}
+          </span>
+        )}
+      </button>
 
-      <Modal open={abierta} onClose={cerrar} title="Equipos que quedaron dentro" maxWidth="max-w-4xl">
+      <Modal open={abierta && total === 0} onClose={() => setAbierta(false)} title="Avisos" maxWidth="max-w-sm">
+        <p className="text-sm text-gray-700 dark:text-gray-300">Ningún equipo quedó dentro en el último cierre de las 11:59 p. m.</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">El historial de otras fechas está en Auditoría, pestaña “Quedaron dentro”.</p>
+        <div className="flex justify-end mt-4">
+          <button type="button" autoFocus onClick={() => setAbierta(false)} className="bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm px-6 py-2.5 rounded-xl">Entendido</button>
+        </div>
+      </Modal>
+
+      <Modal open={abierta && total > 0} onClose={cerrar} title="Equipos que quedaron dentro" maxWidth="max-w-4xl">
         <div className="flex gap-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 mb-4">
           <AlertTriangle size={20} className="shrink-0 text-amber-700 dark:text-amber-300" />
           <p className="text-sm text-amber-900 dark:text-amber-100 leading-relaxed">
