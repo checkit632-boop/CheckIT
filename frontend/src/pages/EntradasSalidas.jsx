@@ -346,6 +346,9 @@ export default function ControlAccesos() {
           </div>
         </div>
 
+        <div className="flex items-center gap-3">
+        {/* v7.0: campana de avisos de equipos que quedaron dentro, junto a la hora. */}
+        <AlertaCierresAutomaticos onAbiertaCambio={setAlertaCierresOpen} />
         <div className="bg-surface dark:bg-gray-800 border border-gray-100/80 dark:border-gray-700 rounded-2xl px-4 py-2 shadow-sm text-right min-w-[160px]">
           <div className="text-lg font-black text-brand-600 dark:text-brand-400 font-mono tracking-tight leading-none">
             {currentTime.toLocaleTimeString('es-CO', {
@@ -365,10 +368,9 @@ export default function ControlAccesos() {
             })}
           </div>
         </div>
+        </div>
       </div>
 
-      {/* Aviso de equipos que quedaron dentro y cerró el reinicio de las 11:59 p. m. */}
-      <AlertaCierresAutomaticos onAbiertaCambio={setAlertaCierresOpen} />
       <AlertaInactividad onAbiertaCambio={setAlertaInactividadOpen} />
 
       {/* 2. FORMULARIO VALIDAR ACCESO Y TARJETAS DERECHA */}

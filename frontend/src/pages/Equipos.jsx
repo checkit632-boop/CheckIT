@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Search, Plus, Pencil, Trash2, QrCode, Power, PowerOff, Wand2, UserPen } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, QrCode, Power, PowerOff, Wand2, UserPen, UserPlus } from 'lucide-react';
 import api from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
@@ -477,12 +477,22 @@ export default function Equipos() {
             <label className={labelCls}>Responsable</label>
             {!nuevaPersona ? (
               <>
-                <input
-                  className={inputCls}
-                  placeholder="Buscar por nombre o documento..."
-                  value={personaSearch}
-                  onChange={(e) => { setPersonaSearch(e.target.value); setForm((f) => ({ ...f, id_persona: '' })); setEditarPersona(false); }}
-                />
+                {/* v7.0: botón verde "Registrar Persona" junto al buscador (antes, un enlace pequeño debajo). */}
+                <div className="flex gap-2">
+                  <input
+                    className={inputCls}
+                    placeholder="Buscar por nombre o documento..."
+                    value={personaSearch}
+                    onChange={(e) => { setPersonaSearch(e.target.value); setForm((f) => ({ ...f, id_persona: '' })); setEditarPersona(false); }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setNuevaPersona(true)}
+                    className="mt-1 shrink-0 flex items-center gap-1.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold px-3"
+                  >
+                    <UserPlus size={15} /> Registrar Persona
+                  </button>
+                </div>
                 {personaSearch && !form.id_persona && (
                   <div className="mt-1 border border-gray-200 dark:border-gray-600 rounded-xl max-h-40 overflow-y-auto">
                     {filteredPersonas.map((p) => (
@@ -498,9 +508,6 @@ export default function Equipos() {
                   </div>
                 )}
                 <div className="flex flex-wrap gap-x-4">
-                  <button type="button" onClick={() => setNuevaPersona(true)} className="text-xs text-brand-700 font-semibold mt-1.5 hover:underline">
-                    + Registrar nueva persona
-                  </button>
                   {/* v7.0: corregir los datos del responsable (solo Administrador
                       y Super Administrador, igual que en el servidor). */}
                   {isAdmin && form.id_persona && (

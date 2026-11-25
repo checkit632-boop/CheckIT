@@ -7,6 +7,7 @@ const PERIODOS = [
   { valor: 'dia', etiqueta: 'Hoy' },
   { valor: 'semana', etiqueta: 'Esta semana' },
   { valor: 'mes', etiqueta: 'Este mes' },
+  { valor: 'todo', etiqueta: 'Todo' }, // v7.0: todo el historial
 ];
 
 function fmtFechaHora(str) {
@@ -25,21 +26,24 @@ export default function Dashboard() {
   const [resumen, setResumen] = useState(null);
   const [movimientos, setMovimientos] = useState([]);
   const [logins, setLogins] = useState([]);
-  const [vista, setVista] = useState('movimientos'); // 'movimientos' | 'logins'
+  const [cierres, setCierres] = useState([]);
+  const [vista, setVista] = useState('movimientos'); // 'movimientos' | 'logins' | 'cierres'
   const [loading, setLoading] = useState(true);
   const [visorAbierto, setVisorAbierto] = useState(false);
 
   const cargar = useCallback(async () => {
     setLoading(true);
     try {
-      const [r, m, l] = await Promise.all([
+      const [r, m, l, c] = await Promise.all([
         api.get(`/dashboard/resumen?periodo=${periodo}`),
         api.get(`/dashboard/movimientos?periodo=${periodo}`),
         api.get(`/dashboard/logins?periodo=${periodo}`),
+        api.get(`/dashboard/cierres?periodo=${periodo}`),
       ]);
       setResumen(r.data);
       setMovimientos(m.data);
       setLogins(l.data);
+      setCierres(c.data);
     } catch (err) {
       console.error('Error cargando el dashboard de auditoría:', err);
     } finally {
@@ -118,7 +122,7 @@ export default function Dashboard() {
       {resumen?.usuariosActivos?.length > 0 && (
         <div className="bg-surface dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-4 mb-6">
           <h3 className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-3">
-            Usuarios más activos {PERIODOS.find(p => p.valor === periodo)?.etiqueta.toLowerCase()}
+            Usuarios más activos {periodo === 'todo' ? 'en todo el historial' : PERIODOS.find(p => p.valor === periodo)?.etiqueta.toLowerCase()}
           </h3>
           <div className="flex flex-wrap gap-2">
             {resumen.usuariosActivos.map((u) => (
@@ -153,9 +157,60 @@ export default function Dashboard() {
           >
             Inicios de sesión
           </button>
+          {/* v7.0: historial de equipos que quedaron dentro del CDATH y cerró el sistema. */}
+          <button
+            onClick={() => setVista('cierres')}
+            className={`px-5 py-3 text-sm font-bold border-b-2 transition-colors ${
+              vista === 'cierres'
+                ? 'border-amber-600 text-amber-700 dark:text-amber-400'
+                : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+            }`}
+          >
+            Quedaron dentro ({cierres.length})
+          </button>
         </div>
 
-        {vista === 'movimientos' ? (
+        {vista === 'cierres' ? (
+          <div className="overflow-auto max-h-[420px]">
+            <table className="w-full min-w-[860px] text-sm">
+              <thead className="bg-amber-50 dark:bg-amber-950/30 text-gray-600 dark:text-gray-300 text-[11px] uppercase sticky top-0">
+                <tr>
+                  <th className="text-left px-5 py-2.5">Cierre (salida automática)</th>
+                  <th className="text-left px-5 py-2.5">Equipo</th>
+                  <th className="text-left px-5 py-2.5">Propietario</th>
+                  <th className="text-left px-5 py-2.5">Entró</th>
+                  <th className="text-left px-5 py-2.5">Después</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
+                {cierres.length === 0 ? (
+                  <tr><td colSpan={5} className="text-center text-gray-500 dark:text-gray-400 py-10">Ningún equipo quedó dentro en este periodo</td></tr>
+                ) : cierres.map((c) => (
+                  <tr key={c.id_registro} className="hover:bg-gray-50/60 dark:hover:bg-gray-700/40 align-top">
+                    <td className="px-5 py-2.5 text-xs text-gray-600 dark:text-gray-300 font-mono">{fmtFechaHora(c.fecha_cierre)}</td>
+                    <td className="px-5 py-2.5">
+                      <div className="text-gray-800 dark:text-gray-200">{c.nombre_marca} {c.modelo}</div>
+                      <div className="font-mono text-xs text-brand-600 dark:text-brand-400">{c.serial}</div>
+                    </td>
+                    <td className="px-5 py-2.5">
+                      <div className="text-gray-800 dark:text-gray-200">{c.persona_nombres} {c.persona_apellidos}</div>
+                      <div className="text-[11px] text-gray-500 dark:text-gray-400 font-mono">{c.numero_documento}</div>
+                    </td>
+                    <td className="px-5 py-2.5 text-xs text-gray-600 dark:text-gray-300">
+                      <div className="font-mono">{fmtFechaHora(c.fecha_entrada)}</div>
+                      {c.entrada_registrada_por && <div className="text-[11px] text-gray-500 dark:text-gray-400">Registró: @{c.entrada_registrada_por}</div>}
+                    </td>
+                    <td className="px-5 py-2.5 text-xs">
+                      {c.movimiento_posterior
+                        ? <span className="text-gray-600 dark:text-gray-300">Volvió a registrar movimiento</span>
+                        : <span className="font-semibold text-amber-700 dark:text-amber-400">Sin movimientos desde el cierre</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : vista === 'movimientos' ? (
           <div className="overflow-auto max-h-[420px]">
             <table className="w-full min-w-[720px] text-sm">
               <thead className="bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400 text-[11px] uppercase sticky top-0">
@@ -229,7 +284,8 @@ export default function Dashboard() {
 
       <p className="text-xs text-gray-600 dark:text-gray-400 mt-3">
         &ldquo;Hoy&rdquo; se reinicia solo a las 00:00 (igual que en Control de Acceso). El reinicio operativo de las 11:59 p.m.
-        cierra automáticamente los equipos que seguían &ldquo;Adentro&rdquo; — esos cierres aparecen aquí marcados como Sistema.
+        cierra automáticamente los equipos que seguían &ldquo;Adentro&rdquo; — esos cierres aparecen aquí marcados como Sistema,
+        y en la pestaña &ldquo;Quedaron dentro&rdquo; con su propietario y la fecha en que entraron. Use &ldquo;Todo&rdquo; para ver otras fechas.
       </p>
     </div>
   );

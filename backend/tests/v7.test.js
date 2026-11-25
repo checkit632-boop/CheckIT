@@ -830,3 +830,49 @@ test('migración: los nombres ya guardados pasan a mayúscula inicial una sola v
     fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5 });
   }
 });
+
+// ---------- Equipos que quedaron dentro: auditoría e historial ----------
+test('cierre: la auditoría guarda los seriales y Auditoría muestra el historial de equipos que quedaron dentro', async () => {
+  const eq = await crearPersonaYEquipo('6001', 'NOCHE-001');
+  const entrada = await pedir('POST', '/api/registros/escanear', {
+    token: ctx.admin,
+    cuerpo: { codigo: 'NOCHE-001', accesorios: [] },
+  });
+  assert.equal(entrada.status, 201);
+  execFileSync(process.execPath, ['scripts/reinicio.js'], {
+    cwd: BACKEND,
+    env: ENV,
+    stdio: 'pipe',
+  });
+
+  conBase((db) => {
+    const aud = db
+      .prepare(
+        "SELECT descripcion FROM auditoria WHERE accion = 'SISTEMA' AND tabla_afectada = 'registros' ORDER BY id_auditoria DESC LIMIT 1"
+      )
+      .pluck()
+      .get();
+    assert.match(aud, /Equipos: .*NOCHE-001/);
+    assert.doesNotMatch(aud, /6001/); // sin documentos de personas
+  });
+
+  for (const periodo of ['dia', 'todo']) {
+    const r = await pedir('GET', `/api/dashboard/cierres?periodo=${periodo}`, { token: ctx.admin });
+    assert.equal(r.status, 200);
+    const fila = r.datos.find((c) => c.serial === 'NOCHE-001');
+    assert.ok(fila, periodo);
+    assert.equal(fila.numero_documento, '6001');
+    assert.ok(fila.fecha_entrada && fila.fecha_cierre);
+    assert.equal(fila.movimiento_posterior, false);
+  }
+  // "todo" también sirve en los demás listados de Auditoría.
+  assert.equal(
+    (await pedir('GET', '/api/dashboard/movimientos?periodo=todo', { token: ctx.admin })).status,
+    200
+  );
+  assert.equal(
+    (await pedir('GET', '/api/dashboard/cierres?periodo=todo', { token: ctx.tokenOpNuevo })).status,
+    403
+  );
+  assert.ok(eq.id_equipo);
+});

@@ -314,7 +314,7 @@ correos. Prueban el inicio de sesión con código, los roles, la entrada y la
 salida con accesorios, las lecturas repetidas, el código de contingencia, la
 cuenta inactivada a mitad del ingreso, el respaldo al arrancar y el cierre
 recuperado, y desde la v7.0 el serial generado, la limpieza por inactividad,
-el visor de la base y la migración desde la 6.11 (27 pruebas, unos 50
+el visor de la base y la migración desde la 6.11 (28 pruebas, unos 50
 segundos). Reemplazan a `backend/scripts/run_tests.sh`, que quedó
 desactualizado.
 
@@ -358,6 +358,14 @@ desactualizado.
   la contraseña y un código de 6 dígitos por correo, dura 15 minutos, es de
   solo lectura y oculta contraseñas y códigos. Si el correo falla:
   `npm run codigo -- USUARIO visor`.
+- **Campana de avisos en Control de Accesos.** La ventana *Equipos que
+  quedaron dentro* (cierre de las 11:59 p. m.) se cierra del todo al pulsar
+  **Entendido**; para volver a verla hay una campana junto a la hora con el
+  número de equipos del último cierre. En **Auditoría**, la pestaña
+  **Quedaron dentro** guarda el historial de todas las fechas (período
+  **Todo**), y el registro de auditoría de cada cierre incluye los seriales.
+- **Botón verde "Registrar Persona"** al lado del campo Responsable en
+  **Nuevo Equipo**.
 
 **Otras herramientas para ver la base** (`backend/db/checkit.db`):
 [DB Browser for SQLite](https://sqlitebrowser.org) (gratuito, recomendado),

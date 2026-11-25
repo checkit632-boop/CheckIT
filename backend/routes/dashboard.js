@@ -14,7 +14,9 @@ router.use(authRequired, requireRole(ROL_SUPER));
 // "dia" = hoy calendario, "semana" = semana calendaria actual, "mes" = mes
 // calendario actual, en hora de Colombia. Las columnas están en UTC; se arma
 // como rango (utils/periodos.js) para que SQLite use los índices de fecha.
+// v7.0: "todo" = sin límite de fechas (todo el historial).
 function condicionPeriodo(columna, periodo) {
+  if (periodo === 'todo') return '1 = 1';
   return rangoUtc(columna, ['dia', 'semana', 'mes'].includes(periodo) ? periodo : 'dia');
 }
 
@@ -106,6 +108,37 @@ router.get('/logins', (req, res) => {
   `).all();
 
   res.json(rows);
+});
+
+// GET /api/dashboard/cierres?periodo=dia|semana|mes|todo  (v7.0)
+// Historial de los equipos que quedaron dentro del centro y a los que el
+// cierre de las 11:59 p. m. les registró la salida, en cualquier fecha: el
+// equipo, su propietario, cuándo entró y quién registró esa entrada, y si
+// después volvió a moverse. Se arma desde las salidas del usuario "sistema".
+router.get('/cierres', (req, res) => {
+  const periodo = req.query.periodo || 'dia';
+  const cond = condicionPeriodo('c.fecha_hora', periodo);
+  const rows = db.prepare(`
+    SELECT c.id_registro, ${aHoraLocal('c.fecha_hora')} AS fecha_cierre,
+           e.serial, e.modelo, m.nombre_marca,
+           p.nombres AS persona_nombres, p.apellidos AS persona_apellidos, p.numero_documento,
+           ${aHoraLocal('ent.fecha_hora')} AS fecha_entrada, ue.usuario AS entrada_registrada_por,
+           EXISTS (SELECT 1 FROM registros r2 WHERE r2.id_equipo = c.id_equipo AND r2.id_registro > c.id_registro) AS movimiento_posterior
+    FROM registros c
+    JOIN usuarios us ON us.id_usuario = c.id_usuario AND us.usuario = 'sistema'
+    JOIN tipos_movimiento tm ON tm.id_tipo_movimiento = c.id_tipo_movimiento AND tm.nombre_movimiento = 'Salida'
+    JOIN equipos e ON e.id_equipo = c.id_equipo
+    JOIN marcas m ON m.id_marca = e.id_marca
+    JOIN personas p ON p.id_persona = e.id_persona
+    LEFT JOIN registros ent ON ent.id_registro = (
+      SELECT MAX(id_registro) FROM registros WHERE id_equipo = c.id_equipo AND id_registro < c.id_registro
+    )
+    LEFT JOIN usuarios ue ON ue.id_usuario = ent.id_usuario
+    WHERE ${cond}
+    ORDER BY c.id_registro DESC
+    LIMIT 500
+  `).all();
+  res.json(rows.map((r) => ({ ...r, movimiento_posterior: Boolean(r.movimiento_posterior) })));
 });
 
 module.exports = router;

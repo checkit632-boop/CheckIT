@@ -35,22 +35,34 @@ function ejecutarReinicioOperativo({ antesDe = null, motivo = '' } = {}) {
   // Ahora se cierran todos (con su auditoría) o ninguno. "Adentro" se decide
   // igual que en el resto del sistema: el último movimiento por id_registro
   // es una entrada (idx_registros_equipo).
+  const DENTRO = `
+    FROM equipos e
+    JOIN registros r ON r.id_registro = (SELECT MAX(id_registro) FROM registros WHERE id_equipo = e.id_equipo)
+    JOIN tipos_movimiento tm ON tm.id_tipo_movimiento = r.id_tipo_movimiento
+    WHERE tm.nombre_movimiento = 'Entrada'
+    ${antesDe ? 'AND r.fecha_hora < ?' : ''}
+  `;
+  const filtro = antesDe ? [antesDe] : [];
+
   const cerrar = db.transaction(() => {
     let cerrados = 0;
+    // v7.0: seriales de los equipos que quedaron dentro, para dejarlos en la
+    // auditoría (sin nombres de personas) y poder consultarlos en otras fechas.
+    let seriales = [];
     if (idSistema && idSalida) {
+      seriales = db.prepare(`SELECT e.serial ${DENTRO} ORDER BY e.serial`).pluck().all(...filtro);
       cerrados = db.prepare(`
         INSERT INTO registros (id_equipo, id_usuario, id_tipo_movimiento)
-        SELECT e.id_equipo, ?, ?
-        FROM equipos e
-        JOIN registros r ON r.id_registro = (SELECT MAX(id_registro) FROM registros WHERE id_equipo = e.id_equipo)
-        JOIN tipos_movimiento tm ON tm.id_tipo_movimiento = r.id_tipo_movimiento
-        WHERE tm.nombre_movimiento = 'Entrada'
-        ${antesDe ? 'AND r.fecha_hora < ?' : ''}
-      `).run(idSistema, idSalida, ...(antesDe ? [antesDe] : [])).changes;
+        SELECT e.id_equipo, ?, ? ${DENTRO}
+      `).run(idSistema, idSalida, ...filtro).changes;
     }
 
+    const MAX_EN_TEXTO = 40;
+    const lista = seriales.length
+      ? ` Equipos: ${seriales.slice(0, MAX_EN_TEXTO).join(', ')}${seriales.length > MAX_EN_TEXTO ? ` y ${seriales.length - MAX_EN_TEXTO} más` : ''}.`
+      : '';
     db.prepare(`INSERT INTO auditoria (id_usuario, accion, tabla_afectada, descripcion) VALUES (NULL, 'SISTEMA', 'registros', ?)`)
-      .run(`Reinicio operativo diario${motivo ? ` (${motivo})` : ''} — se registraron ${cerrados} salida(s) automática(s) (equipos que seguían "Adentro"). No se eliminó ningún dato.`);
+      .run(`Reinicio operativo diario${motivo ? ` (${motivo})` : ''} — se registraron ${cerrados} salida(s) automática(s) (equipos que seguían "Adentro"). No se eliminó ningún dato.${lista}`);
     return cerrados;
   });
 
